@@ -1,29 +1,110 @@
-# Virtual environment
+# ----------------------------------------------------
+# VIRTUAL ENVIRONMENTS
+# ----------------------------------------------------
 venv/
 ENV/
 env/
+.venv/
+env.bak/
 
-# Python cache
+# ----------------------------------------------------
+# PYTHON CACHE
+# ----------------------------------------------------
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Jupyter checkpoints
+# ----------------------------------------------------
+# JUPYTER NOTEBOOK CHECKPOINTS
+# ----------------------------------------------------
 .ipynb_checkpoints/
+*/.ipynb_checkpoints/
 
-# VS Code settings
+# ----------------------------------------------------
+# VS CODE SETTINGS
+# ----------------------------------------------------
 .vscode/
 
-# System / OS files
+# ----------------------------------------------------
+# SYSTEM / OS FILES
+# ----------------------------------------------------
 .DS_Store
 Thumbs.db
 
-# Data files (optional)
+# ----------------------------------------------------
+# DATA FILES (YOUR EXISTING RULES)
+# ----------------------------------------------------
 data/raw/
 data/processed/
 
-# Local env / secrets
+# ----------------------------------------------------
+# ENV / SECRETS
+# ----------------------------------------------------
 *.env
 
+# ----------------------------------------------------
+# SPEECH / AUDIO FILES (LARGE)
+# ----------------------------------------------------
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.ogg
+*.aac
+
+# ----------------------------------------------------
+# HUGGINGFACE / TRANSFORMERS / MODEL WEIGHTS
+# Prevents re-adding the 360MB files
+# ----------------------------------------------------
+*.bin
+*.pt
+*.ckpt
+*.safetensors
+*.h5
+*.pb
+*.model
+
+# HuggingFace cache directories
+huggingface/
+transformers_cache/
+models/
+cache/
+.safetensors_cache/
+.pyannote/
+
+# ----------------------------------------------------
+# WHISPERX / WAV2VEC2 / CHECKPOINT FOLDERS
+# (This is the folder that caused your push to fail)
+# ----------------------------------------------------
+speechlab/wav2vec2_checkpoints/
+speechlab/checkpoints/
+speechlab/models/
+speechlab/cache/
+
+# Catch-all for ANY model folder
+**/checkpoint/
+**/checkpoints/
+**/model/
+**/models/
+
+# ----------------------------------------------------
+# TEMP & LARGE ARTIFACTS
+# ----------------------------------------------------
+*.npy
+*.npz
+*.pkl
+*.jsonl
+*.csv
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.gif
+
+# ----------------------------------------------------
+# LOGS
+# ----------------------------------------------------
+*.log
 
