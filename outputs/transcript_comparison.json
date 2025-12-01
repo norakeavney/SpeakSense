@@ -1,0 +1,9 @@
+{
+  "whisperx_length": 9346,
+  "openai_length": 8463,
+  "whisperx_words": 1654,
+  "openai_words": 1510,
+  "wer": 7.284768211920534,
+  "similarity": 16.05929586164299,
+  "winner": "WhisperX"
+}
