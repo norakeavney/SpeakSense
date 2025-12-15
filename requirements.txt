@@ -1,36 +1,48 @@
-# ============================================================
-# MINIMAL GPU-SAFE REQUIREMENTS FOR:
-# - OpenAI Whisper API transcription
-# - DistilBERT Emotion Analysis
-# - Pandas + NumPy processing
-# - Matplotlib visualisations
-# ============================================================
+# -------------------------
+# Core Python
+# -------------------------
+python-dotenv==1.0.1
 
-numpy==1.24.4
-pandas==2.1.4
-matplotlib==3.8.0
-seaborn==0.12.2
+# -------------------------
+# Numerical / Scientific (PINNED FOR STABILITY)
+# -------------------------
+numpy==1.26.4
+scipy==1.11.4
+pandas==2.2.3
+matplotlib==3.9.4
 
-python-dotenv==1.0.0
-requests==2.31.0
+# -------------------------
+# PyTorch (CUDA 11.8)
+# -------------------------
+torch==2.7.1
+torchaudio==2.7.1
+torchvision==0.22.1
 
-# Transformers & NLP (Emotion Analysis)
-transformers==4.35.2
-tokenizers==0.14.1
-sentencepiece==0.1.99
-accelerate==0.25.0
-
-# OpenAI API client
-openai==1.3.0
-
-# Audio loading
+# -------------------------
+# Speech & Audio
+# -------------------------
+whisperx==3.7.4
+pyannote.audio==3.4.0
+librosa==0.10.2.post1
 soundfile==0.12.1
-librosa==0.10.1
 
-# Notebook + plotting utilities
-jupyter==1.0.0
-ipykernel==6.25.2
-ipywidgets==8.1.1
-notebook==7.0.6
-plotly==5.17.0
-kaleido==0.2.1
+# -------------------------
+# ML / NLP Utilities
+# -------------------------
+transformers==4.57.3
+huggingface-hub==0.36.0
+torchmetrics==0.11.4
+pytorch-lightning==2.1.3
+einops==0.7.0
+
+# -------------------------
+# Dashboards / Notebooks
+# -------------------------
+jupyter
+ipykernel
+plotly==5.24.1
+
+# -------------------------
+# OpenAI API
+# -------------------------
+openai==1.57.4
