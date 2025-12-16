@@ -1,0 +1,12 @@
+{
+  "Speaker_1": {
+    "duration": 550.96,
+    "segments": 90,
+    "avg_segment_duration": 6.121777777777778,
+    "longest_segment": 8.95999999999998,
+    "shortest_segment": 2.240000000000009,
+    "total_words": 1525,
+    "avg_words_per_segment": 16.944444444444443,
+    "words_per_minute": 166.07376216059242
+  }
+}

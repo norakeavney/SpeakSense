@@ -12,7 +12,7 @@ pandas==2.2.3
 matplotlib==3.9.4
 
 # -------------------------
-# PyTorch (CUDA 11.8)
+# PyTorch (CUDA 11.8 - compatible with CUDA 12.8)
 # -------------------------
 torch==2.7.1
 torchaudio==2.7.1
