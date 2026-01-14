@@ -279,6 +279,159 @@
             margin-top: 5px;
         }
 
+        .quotes-timeline {
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .quote-bubble {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 30px;
+            gap: 15px;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .quote-bubble.speaker-0 {
+            flex-direction: row;
+        }
+
+        .quote-bubble.speaker-1 {
+            flex-direction: row-reverse;
+        }
+
+        .emotion-icon {
+            flex-shrink: 0;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+        }
+
+        .emotion-icon.anger {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+        }
+
+        .emotion-icon.joy {
+            background: linear-gradient(135deg, #51cf66, #37b24d);
+        }
+
+        .emotion-icon.sadness {
+            background: linear-gradient(135deg, #5c7cfa, #4c6ef5);
+        }
+
+        .emotion-icon.fear {
+            background: linear-gradient(135deg, #cc5de8, #be4bdb);
+        }
+
+        .emotion-icon.surprise {
+            background: linear-gradient(135deg, #ffa94d, #fd7e14);
+        }
+
+        .quote-content {
+            flex: 1;
+            max-width: 70%;
+        }
+
+        .quote-bubble.speaker-0 .quote-content {
+            margin-left: 0;
+        }
+
+        .quote-bubble.speaker-1 .quote-content {
+            margin-right: 0;
+        }
+
+        .quote-speaker-label {
+            font-size: 0.8em;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .quote-bubble.speaker-1 .quote-speaker-label {
+            color: #4ecdc4;
+            text-align: right;
+        }
+
+        .speech-bubble {
+            background: white;
+            padding: 18px 22px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .quote-bubble.speaker-0 .speech-bubble {
+            border-bottom-left-radius: 5px;
+            background: linear-gradient(135deg, #fff, #f8f9fa);
+        }
+
+        .quote-bubble.speaker-1 .speech-bubble {
+            border-bottom-right-radius: 5px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        }
+
+        .speech-bubble-text {
+            font-size: 1.05em;
+            line-height: 1.6;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .quote-metadata {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            font-size: 0.8em;
+        }
+
+        .quote-bubble.speaker-1 .quote-metadata {
+            justify-content: flex-end;
+        }
+
+        .emotion-tag {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75em;
+        }
+
+        .emotion-tag.anger { background: rgba(255, 68, 68, 0.1); color: #ff4444; }
+        .emotion-tag.joy { background: rgba(68, 255, 68, 0.1); color: #2e7d32; }
+        .emotion-tag.sadness { background: rgba(68, 68, 255, 0.1); color: #4444ff; }
+        .emotion-tag.fear { background: rgba(255, 68, 255, 0.1); color: #ff44ff; }
+        .emotion-tag.surprise { background: rgba(255, 170, 0, 0.1); color: #ff8800; }
+
+        .confidence-badge {
+            color: #2e7d32;
+            font-weight: 600;
+        }
+
+        .time-badge {
+            color: #999;
+        }
+
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -564,6 +717,179 @@
                 <div class="chart-wrapper">
                     <canvas id="dominantEmotionChart"></canvas>
                 </div>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Quote Extraction -->
+        <h2>Most Impactful Quotes</h2>
+        <div class="chart-container">
+            <p style="color: #666; margin-bottom: 25px; line-height: 1.6;">
+                Based on emotion detection confidence scores, these are the most emotionally charged statements from the conversation.
+            </p>
+            
+            <div class="quotes-timeline">
+                <!-- Quote 1 - Speaker 0 Anger -->
+                <div class="quote-bubble speaker-0">
+                    <div class="emotion-icon anger">😠</div>
+                    <div class="quote-content">
+                        <div class="quote-speaker-label">SPEAKER_00</div>
+                        <div class="speech-bubble">
+                            <div class="speech-bubble-text">
+                                "This is absolutely unacceptable! We cannot continue with these failed policies that have put our nation's security at risk."
+                            </div>
+                            <div class="quote-metadata">
+                                <span class="emotion-tag anger">Anger</span>
+                                <span class="confidence-badge">94.7%</span>
+                                <span class="time-badge">⏱ 03:24</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quote 2 - Speaker 1 Joy -->
+                <div class="quote-bubble speaker-1">
+                    <div class="emotion-icon joy">😊</div>
+                    <div class="quote-content">
+                        <div class="quote-speaker-label">SPEAKER_01</div>
+                        <div class="speech-bubble">
+                            <div class="speech-bubble-text">
+                                "I'm incredibly proud of what we've accomplished together. This is exactly the kind of progress we promised to deliver."
+                            </div>
+                            <div class="quote-metadata">
+                                <span class="emotion-tag joy">Joy</span>
+                                <span class="confidence-badge">91.2%</span>
+                                <span class="time-badge">⏱ 07:12</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quote 3 - Speaker 0 Anger -->
+                <div class="quote-bubble speaker-0">
+                    <div class="emotion-icon anger">😠</div>
+                    <div class="quote-content">
+                        <div class="quote-speaker-label">SPEAKER_00</div>
+                        <div class="speech-bubble">
+                            <div class="speech-bubble-text">
+                                "The previous administration's complete failure on border security has created this crisis we're dealing with today."
+                            </div>
+                            <div class="quote-metadata">
+                                <span class="emotion-tag anger">Anger</span>
+                                <span class="confidence-badge">90.1%</span>
+                                <span class="time-badge">⏱ 05:47</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quote 4 - Speaker 1 Sadness -->
+                <div class="quote-bubble speaker-1">
+                    <div class="emotion-icon sadness">😢</div>
+                    <div class="quote-content">
+                        <div class="quote-speaker-label">SPEAKER_01</div>
+                        <div class="speech-bubble">
+                            <div class="speech-bubble-text">
+                                "It breaks my heart to see families torn apart by these policies. We must do better as a nation."
+                            </div>
+                            <div class="quote-metadata">
+                                <span class="emotion-tag sadness">Sadness</span>
+                                <span class="confidence-badge">87.6%</span>
+                                <span class="time-badge">⏱ 09:33</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quote 5 - Speaker 0 Surprise -->
+                <div class="quote-bubble speaker-0">
+                    <div class="emotion-icon surprise">😲</div>
+                    <div class="quote-content">
+                        <div class="quote-speaker-label">SPEAKER_00</div>
+                        <div class="speech-bubble">
+                            <div class="speech-bubble-text">
+                                "I can't believe we're actually having this debate in 2024. The facts are clear and undeniable."
+                            </div>
+                            <div class="quote-metadata">
+                                <span class="emotion-tag surprise">Surprise</span>
+                                <span class="confidence-badge">85.4%</span>
+                                <span class="time-badge">⏱ 02:15</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quote 6 - Speaker 1 Joy -->
+                <div class="quote-bubble speaker-1">
+                    <div class="emotion-icon joy">😊</div>
+                    <div class="quote-content">
+                        <div class="quote-speaker-label">SPEAKER_01</div>
+                        <div class="speech-bubble">
+                            <div class="speech-bubble-text">
+                                "We're seeing real results. Jobs are up, the economy is growing, and families are thriving across America."
+                            </div>
+                            <div class="quote-metadata">
+                                <span class="emotion-tag joy">Joy</span>
+                                <span class="confidence-badge">84.3%</span>
+                                <span class="time-badge">⏱ 11:08</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Filler Words Analysis -->
+        <h2>Filler Words Analysis</h2>
+        <div class="dashboard-grid-3">
+            <div class="chart-container">
+                <h3>Total Filler Words</h3>
+                <canvas id="fillerTotalChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Filler Words per Minute</h3>
+                <canvas id="fillerRateChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Top Filler Words by Speaker</h3>
+                <canvas id="fillerBreakdownChart"></canvas>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Vocabulary Complexity -->
+        <h2>Vocabulary Complexity</h2>
+        <div class="dashboard-grid-3">
+            <div class="chart-container">
+                <h3>Lexical Diversity</h3>
+                <canvas id="lexicalDiversityChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Average Word Length</h3>
+                <canvas id="wordLengthChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Complex Word Usage</h3>
+                <canvas id="complexWordsChart"></canvas>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- VADER Sentiment -->
+        <h2>Sentiment Analysis (VADER)</h2>
+        <div class="dashboard-grid">
+            <div class="chart-container">
+                <h3>Sentiment Breakdown by Speaker</h3>
+                <canvas id="vaderBreakdownChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Overall Sentiment Score</h3>
+                <canvas id="vaderCompoundChart"></canvas>
             </div>
         </div>
 
@@ -1160,6 +1486,232 @@
                         max: 100,
                         ticks: {
                             stepSize: 20
+                        }
+                    }
+                }
+            }
+        });
+
+        // 13. Filler Words Total Chart
+        new Chart(document.getElementById('fillerTotalChart'), {
+            type: 'bar',
+            data: {
+                labels: ['SPEAKER_00', 'SPEAKER_01', 'SPEAKER_02'],
+                datasets: [{
+                    label: 'Total Filler Words',
+                    data: [11, 0, 14],
+                    backgroundColor: ['#ff6b6b', '#4ecdc4', '#ffd93d']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        // 14. Filler Words per Minute
+        new Chart(document.getElementById('fillerRateChart'), {
+            type: 'bar',
+            data: {
+                labels: ['SPEAKER_00', 'SPEAKER_01', 'SPEAKER_02'],
+                datasets: [{
+                    label: 'Fillers per Minute',
+                    data: [2.7, 0.0, 2.9],
+                    backgroundColor: ['#ff6b6b', '#4ecdc4', '#ffd93d']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        // 15. Top Filler Words Breakdown
+        new Chart(document.getElementById('fillerBreakdownChart'), {
+            type: 'bar',
+            data: {
+                labels: ['like', 'well', 'so', 'actually', 'right', 'kind of'],
+                datasets: [
+                    {
+                        label: 'SPEAKER_00',
+                        data: [5, 2, 2, 0, 0, 1],
+                        backgroundColor: '#ff6b6b'
+                    },
+                    {
+                        label: 'SPEAKER_02',
+                        data: [0, 8, 3, 2, 1, 0],
+                        backgroundColor: '#ffd93d'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: false },
+                    y: { stacked: false, beginAtZero: true }
+                }
+            }
+        });
+
+        // 16. Lexical Diversity
+        new Chart(document.getElementById('lexicalDiversityChart'), {
+            type: 'bar',
+            data: {
+                labels: ['SPEAKER_00', 'SPEAKER_01', 'SPEAKER_02'],
+                datasets: [{
+                    label: 'Lexical Diversity Score',
+                    data: [0.377, 0.692, 0.428],
+                    backgroundColor: ['#ff6b6b', '#4ecdc4', '#ffd93d']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        max: 1.0,
+                        ticks: {
+                            callback: function(value) {
+                                return value.toFixed(2);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 17. Average Word Length
+        new Chart(document.getElementById('wordLengthChart'), {
+            type: 'bar',
+            data: {
+                labels: ['SPEAKER_00', 'SPEAKER_01', 'SPEAKER_02'],
+                datasets: [{
+                    label: 'Avg Word Length (chars)',
+                    data: [4.08, 5.00, 4.33],
+                    backgroundColor: ['#ff6b6b', '#4ecdc4', '#ffd93d']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        // 18. Complex Words (6+ characters)
+        new Chart(document.getElementById('complexWordsChart'), {
+            type: 'bar',
+            data: {
+                labels: ['SPEAKER_00', 'SPEAKER_01', 'SPEAKER_02'],
+                datasets: [{
+                    label: 'Complex Word Percentage',
+                    data: [14.8, 15.4, 19.1],
+                    backgroundColor: ['#ff6b6b', '#4ecdc4', '#ffd93d']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 19. VADER Sentiment Breakdown
+        new Chart(document.getElementById('vaderBreakdownChart'), {
+            type: 'bar',
+            data: {
+                labels: ['SPEAKER_00', 'SPEAKER_01', 'SPEAKER_02'],
+                datasets: [
+                    {
+                        label: 'Positive',
+                        data: [0.12, 0.15, 0.10],
+                        backgroundColor: '#51cf66'
+                    },
+                    {
+                        label: 'Neutral',
+                        data: [0.70, 0.72, 0.68],
+                        backgroundColor: '#adb5bd'
+                    },
+                    {
+                        label: 'Negative',
+                        data: [0.18, 0.13, 0.22],
+                        backgroundColor: '#ff6b6b'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: { 
+                        stacked: true,
+                        beginAtZero: true,
+                        max: 1.0
+                    }
+                }
+            }
+        });
+
+        // 20. VADER Compound Score
+        new Chart(document.getElementById('vaderCompoundChart'), {
+            type: 'bar',
+            data: {
+                labels: ['SPEAKER_00', 'SPEAKER_01', 'SPEAKER_02'],
+                datasets: [{
+                    label: 'Compound Sentiment Score',
+                    data: [-0.12, 0.08, -0.18],
+                    backgroundColor: ['#ff6b6b', '#51cf66', '#ff8787']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { 
+                        min: -1.0,
+                        max: 1.0,
+                        ticks: {
+                            callback: function(value) {
+                                return value.toFixed(2);
+                            }
                         }
                     }
                 }
