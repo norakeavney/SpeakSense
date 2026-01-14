@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bias Detection Dashboard - SpeakSense</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .dashboard-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        h2 {
+            color: #764ba2;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 3px solid #667eea;
+            font-size: 1.6em;
+        }
+
+        h3 {
+            color: #555;
+            margin: 0 0 12px 0;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 280px;
+            flex: 1;
+        }
+
+        .chart-wrapper-medium {
+            position: relative;
+            height: 320px;
+            flex: 1;
+        }
+
+        .chart-wrapper-large {
+            position: relative;
+            height: 350px;
+            flex: 1;
+        }
+
+        .wordcloud-wrapper {
+            position: relative;
+            height: 320px;
+            background: white;
+            border-radius: 8px;
+            flex: 1;
+        }
+
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .insight-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .insight-card h4 {
+            color: #764ba2;
+            margin: 0 0 10px 0;
+            font-size: 1.1em;
+        }
+
+        .insight-card p {
+            color: #555;
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        .bias-indicator {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .bias-indicator.low {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+
+        .bias-indicator.medium {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .bias-indicator.high {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+
+        .bias-indicator-badge {
+            min-width: 60px;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.75em;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .bias-indicator.low .bias-indicator-badge {
+            background: #28a745;
+            color: white;
+        }
+
+        .bias-indicator.medium .bias-indicator-badge {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .bias-indicator.high .bias-indicator-badge {
+            background: #dc3545;
+            color: white;
+        }
+
+        .bias-indicator-content h4 {
+            margin: 0 0 5px 0;
+            color: #333;
+            font-size: 1em;
+        }
+
+        .bias-indicator-content p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .summary-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 25px;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+            margin-bottom: 20px;
+        }
+
+        .summary-section h3 {
+            color: #764ba2;
+            margin: 0 0 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .summary-section p {
+            color: #555;
+            line-height: 1.8;
+            margin: 0;
+        }
+
+        .ai-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.7em;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+
+        .speaker-id-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #4ecdc4;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .speaker-id-card h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .speaker-id-card .original-label {
+            color: #999;
+            font-size: 0.85em;
+            font-weight: normal;
+        }
+
+        .speaker-id-card p {
+            margin: 5px 0;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .speaker-id-card .confidence {
+            display: inline-block;
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .section-divider {
+            margin: 25px 0;
+            border: none;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #667eea, transparent);
+        }
+
+        .audio-info-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .audio-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .audio-icon {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+        }
+
+        .audio-details h2 {
+            margin: 0;
+            color: white;
+            border: none;
+            padding: 0;
+            font-size: 1.8em;
+        }
+
+        .audio-filename {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .speakers-section {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .speakers-section h3 {
+            margin: 0 0 15px 0;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .speaker-labels {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .speaker-label {
+            background: white;
+            color: #333;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .speaker-color-dot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bias Detection Dashboard</h1>
+        <p class="subtitle">Audio Analysis & Speaker Statistics</p>
+
+        <!-- Audio File Information -->
+        <div class="audio-info-section">
+            <div class="audio-header">
+                <div class="audio-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 18V5l12-2v13"></path>
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <circle cx="18" cy="16" r="3"></circle>
+                    </svg>
+                </div>
+                <div class="audio-details">
+                    <h2>Audio Sample Analysis</h2>
+                    <div class="audio-filename" id="audioFilename">debate_sample.wav</div>
+                </div>
+            </div>
+            
+            <div class="speakers-section">
+                <h3>Identified Speakers</h3>
+                <div class="speaker-labels">
+                    <div class="speaker-label">
+                        <span class="speaker-color-dot" style="background-color: #ff6b6b;"></span>
+                        <span>SPEAKER_00</span>
+                    </div>
+                    <div class="speaker-label">
+                        <span class="speaker-color-dot" style="background-color: #4ecdc4;"></span>
+                        <span>SPEAKER_01</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audio Summary -->
+        <div class="summary-section">
+            <h3>
+                Audio Summary
+                <span class="ai-badge">AI GENERATED</span>
+            </h3>
+            <p id="audioSummary">
+                This debate excerpt features a heated discussion on immigration policy and border security. 
+                The conversation covers key topics including economic impacts of immigration, border wall 
+                funding, national security concerns, and humanitarian considerations. Speaker 00 emphasizes 
+                strong border enforcement and economic concerns, while Speaker 01 focuses on comprehensive 
+                immigration reform and humanitarian aspects. The discussion demonstrates contrasting viewpoints 
+                with both speakers maintaining assertive tones throughout. Notable tension points include 
+                debates over policy effectiveness and resource allocation.
+            </p>
+        </div>
+
+        <!-- Overview Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="numSpeakers">2</div>
+                <div class="stat-label">Speakers Identified</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalSegments">156</div>
+                <div class="stat-label">Total Segments</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="duration">12.5</div>
+                <div class="stat-label">Duration (minutes)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalWords">2,845</div>
+                <div class="stat-label">Total Words</div>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Speaking Metrics -->
+        <h2>Speaking Metrics Overview</h2>
+        <div class="dashboard-grid-3">
+            <div class="chart-container">
+                <h3>Time Share</h3>
+                <div class="chart-wrapper">
+                    <canvas id="timeShareChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container">
+                <h3>Average WPM</h3>
+                <div class="chart-wrapper">
+                    <canvas id="avgWpmChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container">
+                <h3>Word Count</h3>
+                <div class="chart-wrapper">
+                    <canvas id="wordCountChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="chart-container full-width">
+                <h3>Speaking Pace Over Time</h3>
+                <div class="chart-wrapper-medium">
+                    <canvas id="wpmTimelineChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Topic Analysis -->
+        <h2>Key Topics Discussion</h2>
+        <div class="dashboard-grid">
+            <div class="chart-container full-width">
+                <h3>Word Cloud of Discussion Topics</h3>
+                <div class="wordcloud-wrapper">
+                    <canvas id="topicWordCloud"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Emotion Analysis -->
+        <h2>Emotion Detection Analysis</h2>
+        
+        <div class="dashboard-grid">
+            <div class="chart-container">
+                <h3>Overall Emotion Distribution</h3>
+                <div class="chart-wrapper">
+                    <canvas id="overallEmotionChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3>Emotion by Speaker (Stacked)</h3>
+                <div class="chart-wrapper">
+                    <canvas id="speakerEmotionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="chart-container">
+                <h3>Emotion Percentage Comparison</h3>
+                <div class="chart-wrapper">
+                    <canvas id="emotionPercentageChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3>Dominant Emotion Per Speaker</h3>
+                <div class="chart-wrapper">
+                    <canvas id="dominantEmotionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Bias Detection Indicators -->
+        <h2>Bias Detection Indicators</h2>
+        <div class="chart-container">
+            <div class="bias-indicator low">
+                <div class="bias-indicator-badge">Low</div>
+                <div class="bias-indicator-content">
+                    <h4>Speaking Time Balance</h4>
+                    <p>Time distribution is relatively balanced (45.2% vs 54.8%). No major dominance detected.</p>
+                </div>
+            </div>
+            <div class="bias-indicator medium">
+                <div class="bias-indicator-badge">Medium</div>
+                <div class="bias-indicator-content">
+                    <h4>Emotional Tone Disparity</h4>
+                    <p>Speaker 00 shows 20% anger vs Speaker 01's 10%. Possible hostile interaction pattern.</p>
+                </div>
+            </div>
+            <div class="bias-indicator low">
+                <div class="bias-indicator-badge">Low</div>
+                <div class="bias-indicator-content">
+                    <h4>Speaking Speed Variance</h4>
+                    <p>Both speakers maintain normal speaking pace (142-156 WPM). No rushed speech patterns.</p>
+                </div>
+            </div>
+            <div class="bias-indicator medium">
+                <div class="bias-indicator-badge">Medium</div>
+                <div class="bias-indicator-content">
+                    <h4>Loudness Imbalance</h4>
+                    <p>Speaker 00 speaks 18% louder on average. May indicate dominance or assertiveness.</p>
+                </div>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Key Insights -->
+        <h2>Key Insights & Analysis</h2>
+        <div class="insights-grid">
+            <div class="insight-card">
+                <h4>Conversation Dynamics</h4>
+                <div class="metric-value">156</div>
+                <p>Total speaking turns analyzed. Average turn length: 4.8 seconds. Indicates back-and-forth conversational style.</p>
+            </div>
+            <div class="insight-card">
+                <h4>Emotional Balance</h4>
+                <div class="metric-value">45%</div>
+                <p>Neutral emotion segments. Lower than typical debate average (60%), suggesting heightened emotional engagement.</p>
+            </div>
+            <div class="insight-card">
+                <h4>Speech Complexity</h4>
+                <div class="metric-value">18.2</div>
+                <p>Average words per segment. Indicates concise, punchy communication style rather than long monologues.</p>
+            </div>
+            <div class="insight-card">
+                <h4>Topic Diversity</h4>
+                <div class="metric-value">12</div>
+                <p>Distinct topics identified across conversation. Shows broad coverage of multiple discussion points.</p>
+            </div>
+            <div class="insight-card">
+                <h4>Interruption Rate</h4>
+                <div class="metric-value">8%</div>
+                <p>Percentage of segments with overlapping speech. Moderate interruption level for debate context.</p>
+            </div>
+            <div class="insight-card">
+                <h4>Sentiment Shift</h4>
+                <div class="metric-value">+2.3</div>
+                <p>Average sentiment change per minute. Indicates emotional volatility and dynamic conversation flow.</p>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Audio Features Analysis -->
+        <h2>Audio Features Analysis</h2>
+        
+        <div class="dashboard-grid">
+            <div class="chart-container">
+                <h3>Average Loudness by Speaker</h3>
+                <div class="chart-wrapper">
+                    <canvas id="loudnessChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3>Tone Brightness by Speaker</h3>
+                <div class="chart-wrapper">
+                    <canvas id="toneChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Comparative Speaker Analysis -->
+        <h2>Comparative Speaker Analysis</h2>
+        <div class="chart-container">
+            <div class="dashboard-grid">
+                <div class="chart-wrapper">
+                    <canvas id="speakerComparisonRadar"></canvas>
+                </div>
+                <div style="padding: 20px;">
+                    <h3>Speaker Profile Comparison</h3>
+                    <p style="color: #555; line-height: 1.8; margin-bottom: 15px;">
+                        This radar chart provides a comprehensive comparison of both speakers across multiple dimensions:
+                    </p>
+                    <ul style="color: #555; line-height: 2;">
+                        <li><strong>Dominance:</strong> Time share and word count</li>
+                        <li><strong>Pace:</strong> Speaking speed (WPM)</li>
+                        <li><strong>Assertiveness:</strong> Loudness and tone</li>
+                        <li><strong>Emotional Expression:</strong> Non-neutral emotion percentage</li>
+                        <li><strong>Engagement:</strong> Topic coverage and participation</li>
+                    </ul>
+                    <p style="color: #764ba2; font-weight: 600; margin-top: 20px;">
+                        Both speakers show balanced profiles with Speaker 01 slightly more dominant in time share and engagement.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p><strong>SpeakSense</strong> - Bias Detection Dashboard</p>
+            <p>Generated on: <span id="timestamp"></span></p>
+        </footer>
+    </div>
+
+    <script>
+        // Set timestamp
+        document.getElementById('timestamp').textContent = new Date().toLocaleString();
+
+        // Sample data - Replace with actual data from your analysis
+        const speakers = ['SPEAKER_00', 'SPEAKER_01'];
+        const speakerColors = ['#ff6b6b', '#4ecdc4'];
+        const emotionColors = {
+            'anger': '#ff4444',
+            'joy': '#44ff44',
+            'sadness': '#4444ff',
+            'fear': '#ff44ff',
+            'surprise': '#ffaa00',
+            'neutral': '#888888'
+        };
+
+        // 1. Speaker Time Share Pie Chart
+        new Chart(document.getElementById('timeShareChart'), {
+            type: 'pie',
+            data: {
+                labels: ['SPEAKER_00\n45.2%', 'SPEAKER_01\n54.8%'],
+                datasets: [{
+                    data: [45.2, 54.8],
+                    backgroundColor: speakerColors,
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { font: { size: 14 } }
+                    },
+                    title: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // 2. Average WPM Bar Chart
+        new Chart(document.getElementById('avgWpmChart'), {
+            type: 'bar',
+            data: {
+                labels: speakers,
+                datasets: [{
+                    label: 'Average WPM',
+                    data: [142, 156],
+                    backgroundColor: speakerColors,
+                    borderColor: '#333',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Words Per Minute'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 3. WPM Timeline (Line Chart)
+        new Chart(document.getElementById('wpmTimelineChart'), {
+            type: 'line',
+            data: {
+                labels: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+                datasets: [
+                    {
+                        label: 'SPEAKER_00',
+                        data: [135, 142, 138, 145, 150, 143, 148, 140, 145, 138, 142, 147, 144],
+                        borderColor: speakerColors[0],
+                        backgroundColor: speakerColors[0] + '40',
+                        tension: 0.4,
+                        borderWidth: 3
+                    },
+                    {
+                        label: 'SPEAKER_01',
+                        data: [148, 155, 160, 158, 162, 156, 159, 163, 157, 161, 158, 164, 160],
+                        borderColor: speakerColors[1],
+                        backgroundColor: speakerColors[1] + '40',
+                        tension: 0.4,
+                        borderWidth: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { font: { size: 14 } }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time (minutes)'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Words Per Minute'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 4. Word Count Bar Chart
+        new Chart(document.getElementById('wordCountChart'), {
+            type: 'bar',
+            data: {
+                labels: speakers,
+                datasets: [{
+                    label: 'Total Words',
+                    data: [1286, 1559],
+                    backgroundColor: speakerColors,
+                    borderColor: '#333',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Words'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 5. Overall Emotion Distribution Pie Chart
+        new Chart(document.getElementById('overallEmotionChart'), {
+            type: 'pie',
+            data: {
+                labels: ['Neutral', 'Joy', 'Anger', 'Sadness', 'Fear', 'Surprise'],
+                datasets: [{
+                    data: [45, 22, 15, 10, 5, 3],
+                    backgroundColor: [
+                        emotionColors.neutral,
+                        emotionColors.joy,
+                        emotionColors.anger,
+                        emotionColors.sadness,
+                        emotionColors.fear,
+                        emotionColors.surprise
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { font: { size: 12 } }
+                    }
+                }
+            }
+        });
+
+        // 6. Speaker Emotion Stacked Bar Chart
+        new Chart(document.getElementById('speakerEmotionChart'), {
+            type: 'bar',
+            data: {
+                labels: speakers,
+                datasets: [
+                    {
+                        label: 'Neutral',
+                        data: [42, 48],
+                        backgroundColor: emotionColors.neutral
+                    },
+                    {
+                        label: 'Joy',
+                        data: [18, 26],
+                        backgroundColor: emotionColors.joy
+                    },
+                    {
+                        label: 'Anger',
+                        data: [20, 10],
+                        backgroundColor: emotionColors.anger
+                    },
+                    {
+                        label: 'Sadness',
+                        data: [12, 8],
+                        backgroundColor: emotionColors.sadness
+                    },
+                    {
+                        label: 'Fear',
+                        data: [6, 4],
+                        backgroundColor: emotionColors.fear
+                    },
+                    {
+                        label: 'Surprise',
+                        data: [2, 4],
+                        backgroundColor: emotionColors.surprise
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { font: { size: 11 } }
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: true
+                    },
+                    y: {
+                        stacked: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Segments'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 7. Emotion Percentage Comparison (Grouped Bar)
+        new Chart(document.getElementById('emotionPercentageChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Neutral', 'Joy', 'Anger', 'Sadness', 'Fear', 'Surprise'],
+                datasets: [
+                    {
+                        label: 'SPEAKER_00',
+                        data: [42, 18, 20, 12, 6, 2],
+                        backgroundColor: speakerColors[0]
+                    },
+                    {
+                        label: 'SPEAKER_01',
+                        data: [48, 26, 10, 8, 4, 4],
+                        backgroundColor: speakerColors[1]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { font: { size: 12 } }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Percentage (%)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 8. Dominant Emotion Bar Chart
+        new Chart(document.getElementById('dominantEmotionChart'), {
+            type: 'bar',
+            data: {
+                labels: speakers,
+                datasets: [{
+                    label: 'Dominant Emotion (%)',
+                    data: [42, 48],
+                    backgroundColor: [emotionColors.neutral, emotionColors.neutral],
+                    borderColor: '#333',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Percentage (%)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 9. Loudness Bar Chart
+        new Chart(document.getElementById('loudnessChart'), {
+            type: 'bar',
+            data: {
+                labels: speakers,
+                datasets: [{
+                    label: 'Average Loudness (RMS)',
+                    data: [0.045, 0.038],
+                    backgroundColor: speakerColors,
+                    borderColor: '#333',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Loudness Level'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 10. Tone Brightness Bar Chart
+        new Chart(document.getElementById('toneChart'), {
+            type: 'bar',
+            data: {
+                labels: speakers,
+                datasets: [{
+                    label: 'Tone Brightness',
+                    data: [1850, 2120],
+                    backgroundColor: speakerColors,
+                    borderColor: '#333',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Spectral Centroid (Hz)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // 11. Word Cloud for Topics
+        // Sample topic words - Replace with your actual topic extraction results
+        const topicWords = [
+            ['immigration', 40],
+            ['economy', 35],
+            ['healthcare', 30],
+            ['policy', 28],
+            ['border', 25],
+            ['jobs', 24],
+            ['security', 22],
+            ['budget', 20],
+            ['infrastructure', 18],
+            ['education', 18],
+            ['climate', 16],
+            ['trade', 15],
+            ['taxes', 14],
+            ['reform', 13],
+            ['administration', 12],
+            ['congress', 11],
+            ['legislation', 10],
+            ['investment', 10],
+            ['growth', 9],
+            ['deficit', 8]
+        ];
+
+        // Generate word cloud
+        const wordCloudCanvas = document.getElementById('topicWordCloud');
+        if (wordCloudCanvas && typeof WordCloud !== 'undefined') {
+            WordCloud(wordCloudCanvas, {
+                list: topicWords,
+                gridSize: 8,
+                weightFactor: 3,
+                fontFamily: 'Segoe UI, sans-serif',
+                color: function() {
+                    const colors = ['#667eea', '#764ba2', '#ff6b6b', '#4ecdc4', '#45b7d1', '#ffd93d'];
+                    return colors[Math.floor(Math.random() * colors.length)];
+                },
+                rotateRatio: 0.3,
+                backgroundColor: 'white',
+                minSize: 10
+            });
+        }
+
+        // 12. Radar Chart - Speaker Comparison
+        new Chart(document.getElementById('speakerComparisonRadar'), {
+            type: 'radar',
+            data: {
+                labels: ['Dominance', 'Speaking Pace', 'Assertiveness', 'Emotional Expression', 'Engagement'],
+                datasets: [
+                    {
+                        label: 'SPEAKER_00',
+                        data: [45, 72, 85, 58, 65],
+                        backgroundColor: 'rgba(255, 107, 107, 0.2)',
+                        borderColor: '#ff6b6b',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#ff6b6b',
+                        pointBorderColor: '#fff',
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'SPEAKER_01',
+                        data: [55, 78, 70, 42, 75],
+                        backgroundColor: 'rgba(78, 205, 196, 0.2)',
+                        borderColor: '#4ecdc4',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#4ecdc4',
+                        pointBorderColor: '#fff',
+                        pointRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { font: { size: 14 } }
+                    }
+                },
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            stepSize: 20
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
