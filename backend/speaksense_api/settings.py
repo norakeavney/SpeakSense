@@ -43,6 +43,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'drf_spectacular',
+    
+    # Local apps
+    'speech_analysis',
 ]
 
 MIDDLEWARE = [
