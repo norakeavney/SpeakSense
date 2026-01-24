@@ -7,4 +7,8 @@ from . import views
 urlpatterns = [
     path('health/', views.health_check, name='health_check'),
     path('info/', views.api_info, name='api_info'),
+    path('mongodb-test/', views.mongodb_test, name='mongodb_test'),
+    
+    # Audio upload endpoint
+    path('upload/', views.upload_audio, name='upload_audio'),
 ]
