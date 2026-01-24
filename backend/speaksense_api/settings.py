@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +21,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-tj_r4hlnay67eo@z1zzthgvqxt&=p51t64xi+@%u=^of(l4&6l'
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-tj_r4hlnay67eo@z1zzthgvqxt&=p51t64xi+@%u=^of(l4&6l')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
 
 # Application definition
@@ -37,11 +38,17 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    # Third-party apps
+    'rest_framework',
+    'corsheaders',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # CORS - must be before CommonMiddleware
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -121,3 +128,50 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ============================================
+# REST FRAMEWORK CONFIGURATION
+# ============================================
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.MultiPartParser',
+        'rest_framework.parsers.FormParser',
+    ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50,
+}
+
+# ============================================
+# API DOCUMENTATION (drf-spectacular)
+# ============================================
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'SpeakSense API',
+    'DESCRIPTION': 'Speech Analysis & Transcription API',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
+
+# ============================================
+# CORS SETTINGS
+# ============================================
+# For development - allow frontend to make requests
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',  # React default
+    'http://localhost:5173',  # Vite default
+    'http://localhost:8080',  # Vue default
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+# ============================================
+# MONGODB CONNECTION
+# ============================================
+# Use MongoDB Atlas URI from environment variables
+MONGODB_URI = config('MONGODB_URI', default='mongodb://localhost:27017/speaksense_db')
+MONGODB_DB_NAME = config('MONGODB_DB_NAME', default='speaksense_db')
