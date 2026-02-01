@@ -25,7 +25,12 @@ class MongoDBConnection:
             return self.db
             
         try:
-            self.client = MongoClient(self._mongodb_uri)
+            # Add SSL/TLS settings for Python 3.12+ compatibility
+            self.client = MongoClient(
+                self._mongodb_uri,
+                tlsAllowInvalidCertificates=True,  # For development/testing
+                serverSelectionTimeoutMS=10000
+            )
             self.db = self.client[self._db_name]
             
             # Test connection
@@ -43,7 +48,12 @@ class MongoDBConnection:
             return self.async_db
             
         try:
-            self.async_client = AsyncIOMotorClient(self._mongodb_uri)
+            # Add SSL/TLS settings for Python 3.12+ compatibility
+            self.async_client = AsyncIOMotorClient(
+                self._mongodb_uri,
+                tlsAllowInvalidCertificates=True,  # For development/testing
+                serverSelectionTimeoutMS=10000
+            )
             self.async_db = self.async_client[self._db_name]
             
             # Test connection
