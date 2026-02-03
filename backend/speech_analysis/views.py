@@ -10,6 +10,8 @@ import os
 from pathlib import Path
 from .serializers import AudioUploadSerializer
 from speech_analysis.db.mongodb import mongodb
+from speech_analysis.db.analysis_jobs import AnalysisJobManager
+from speech_analysis.workers.fake_processor import FakeProcessor
 
 
 @api_view(['GET'])
@@ -135,12 +137,61 @@ def upload_audio(request):
     
     result = audio_collection.insert_one(audio_document)
     
+    # Create analysis job
+    job_id = AnalysisJobManager.create_job(
+        audio_id=str(result.inserted_id),
+        audio_path=str(file_path)
+    )
+    
+    # Start background processing
+    FakeProcessor.start_processing(job_id, str(file_path))
+    
     # Return success response
     return Response({
         'message': 'Audio file uploaded successfully!',
         'file_id': str(result.inserted_id),
+        'job_id': job_id,
+        'status': 'queued',
         'filename': unique_filename,
         'size': f"{audio_file.size / (1024*1024):.2f} MB",
         'title': title
     }, status=status.HTTP_201_CREATED)
 
+
+@api_view(['GET'])
+def analysis_status(request, job_id):
+    """
+    Get analysis job status and results
+    
+    Args:
+        job_id (str): UUID of the analysis job
+        
+    Returns:
+        JSON with status, steps, and available results
+    """
+    try:
+        # Fetch job from MongoDB
+        job = AnalysisJobManager.get_job(job_id)
+        
+        if not job:
+            return Response({
+                'error': 'Job not found',
+                'job_id': job_id
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Return job status and results
+        return Response({
+            'job_id': job['job_id'],
+            'status': job['status'],
+            'steps': job['steps'],
+            'results': job.get('results', {}),
+            'error': job.get('error'),
+            'created_at': job['created_at'].isoformat() if job.get('created_at') else None,
+            'updated_at': job['updated_at'].isoformat() if job.get('updated_at') else None
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            'error': 'Failed to fetch job status',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
