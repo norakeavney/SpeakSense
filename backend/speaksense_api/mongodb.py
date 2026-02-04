@@ -22,7 +22,12 @@ class MongoDBConnection:
         """Establish connection to MongoDB"""
         if self._client is None:
             try:
-                self._client = MongoClient(settings.MONGODB_URI)
+                self._client = MongoClient(
+                    settings.MONGODB_URI,
+                    tls=True,
+                    tlsAllowInvalidCertificates=True,
+                    serverSelectionTimeoutMS=10000
+                )
                 # Test the connection
                 self._client.admin.command('ping')
                 self._db = self._client[settings.MONGODB_DB_NAME]

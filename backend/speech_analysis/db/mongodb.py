@@ -25,20 +25,23 @@ class MongoDBConnection:
             return self.db
             
         try:
-            # Add SSL/TLS settings for Python 3.12+ compatibility
+            # Use system CA certificates for Windows
+            import ssl
+            import certifi
+            
             self.client = MongoClient(
                 self._mongodb_uri,
-                tlsAllowInvalidCertificates=True,  # For development/testing
-                serverSelectionTimeoutMS=10000
+                tls=True,
+                tlsCAFile=certifi.where(),
+                serverSelectionTimeoutMS=10000,
+                connectTimeoutMS=10000
             )
             self.db = self.client[self._db_name]
             
-            # Test connection
-            self.client.admin.command('ping')
-            print(f"✅ Connected to MongoDB: {self._db_name}")
+            print(f"✅ MongoDB client initialized: {self._db_name}")
             return self.db
             
-        except ConnectionFailure as e:
+        except Exception as e:
             print(f"❌ MongoDB connection failed: {e}")
             raise
     

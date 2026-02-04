@@ -28,8 +28,22 @@ class FakeProcessor:
             if not job_id:
                 raise ValueError("job_id is required")
             
-            if not audio_path or not Path(audio_path).exists():
-                raise ValueError(f"Audio file not found: {audio_path}")
+            # Validate file path exists (with retry for timing issues)
+            if not audio_path:
+                raise ValueError("audio_path is required")
+            
+            file_path = Path(audio_path)
+            max_retries = 3
+            for attempt in range(max_retries):
+                if file_path.exists() and file_path.stat().st_size > 0:
+                    break
+                if attempt < max_retries - 1:
+                    print(f"⏳ File not ready, waiting... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(0.5)
+            else:
+                raise ValueError(f"Audio file not found or empty after {max_retries} attempts: {audio_path}")
+            
+            print(f"✅ File validated: {audio_path} ({file_path.stat().st_size} bytes)")
             
             # Update job status to processing
             AnalysisJobManager.update_status(job_id, AnalysisJobManager.STATUS_PROCESSING)

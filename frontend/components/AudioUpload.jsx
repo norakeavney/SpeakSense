@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { uploadAudio } from '@/lib/api';
+import AnalysisProgress from './AnalysisProgress';
 
 export default function AudioUpload() {
   const [file, setFile] = useState(null);
@@ -131,12 +132,15 @@ export default function AudioUpload() {
               ✅ Upload Successful!
             </h3>
             <div className="text-sm text-green-700 space-y-1">
-              <p><strong>File ID:</strong> {result.file_id}</p>
               <p><strong>Filename:</strong> {result.filename}</p>
               <p><strong>Size:</strong> {result.size}</p>
-              <p><strong>Title:</strong> {result.title}</p>
             </div>
           </div>
+        )}
+
+        {/* Analysis Progress - Show if we have a job_id */}
+        {result?.job_id && (
+          <AnalysisProgress jobId={result.job_id} />
         )}
 
         {/* Error Message */}

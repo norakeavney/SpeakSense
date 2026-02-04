@@ -116,6 +116,14 @@ def upload_audio(request):
     with open(file_path, 'wb+') as destination:
         for chunk in audio_file.chunks():
             destination.write(chunk)
+        destination.flush()  # Ensure file is written to disk
+        os.fsync(destination.fileno())  # Force OS to write to disk
+    
+    # Verify file exists and has size
+    if not file_path.exists() or file_path.stat().st_size == 0:
+        return Response({
+            'error': 'File upload failed - file not saved properly'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     # Save metadata to MongoDB
     db = mongodb.connect()
