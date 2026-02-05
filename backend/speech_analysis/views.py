@@ -153,7 +153,7 @@ def upload_audio(request):
     )
     
     # Start background processing
-    start_real_processing(job_id, file_path)
+    start_real_processing(job_id, str(file_path))
     
     # Return success response
     return Response({
