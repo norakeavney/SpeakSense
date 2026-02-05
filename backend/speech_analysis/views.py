@@ -8,10 +8,11 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 from datetime import datetime
 import os
 from pathlib import Path
+
+from speech_analysis.workers.real_processor import start_real_processing
 from .serializers import AudioUploadSerializer
 from speech_analysis.db.mongodb import mongodb
 from speech_analysis.db.analysis_jobs import AnalysisJobManager
-from speech_analysis.workers.fake_processor import FakeProcessor
 
 
 @api_view(['GET'])
@@ -152,7 +153,7 @@ def upload_audio(request):
     )
     
     # Start background processing
-    FakeProcessor.start_processing(job_id, str(file_path))
+    start_real_processing(job_id, file_path)
     
     # Return success response
     return Response({
