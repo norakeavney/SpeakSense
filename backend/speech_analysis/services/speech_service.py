@@ -1,248 +1,158 @@
 """
-Complete Speech Analysis Service
-Combines transcription + speaker diarization in one place
+Speech Analysis Service - Whisper + Pyannote (No WhisperX!)
+Clean separation: Whisper for transcription, Pyannote for diarization
 """
-import torch
 import whisper
+import torch
+import pandas as pd
 import os
 from pathlib import Path
-from pyannote.audio import Pipeline
-import pandas as pd
-
-
-class SpeechAnalysisService:
-    """
-    All-in-one service for speech analysis:
-    - Transcription (Whisper)
-    - Speaker diarization (Pyannote)
-    - Alignment (combine them)
-    """
-    
-    def __init__(self):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.whisper_model = None
-        self.diarization_pipeline = None
-        
-    def _load_whisper(self):
-        """Lazy load Whisper model"""
-        if self.whisper_model is None:
-            print(f"Loading Whisper model on {self.device}...")
-            self.whisper_model = whisper.load_model("base", device=self.device)
-            print("✓ Whisper model loaded")
-    
-    def _load_diarization(self):
-        """Lazy load pyannote diarization pipeline"""
-        if self.diarization_pipeline is None:
-            hf_token = os.getenv('HF_TOKEN') or os.getenv('HUGGINGFACE_TOKEN')
-            
-            if not hf_token:
-                raise ValueError("HF_TOKEN not found in .env file")
-            
-            print(f"Loading pyannote diarization pipeline on {self.device}...")
-            self.diarization_pipeline = Pipeline.from_pretrained(
-                "pyannote/speaker-diarization-3.1",
-                use_auth_token=hf_token
-            )
-            self.diarization_pipeline.to(torch.device(self.device))
-            print("✓ Diarization pipeline loaded")
-    
-    def analyze_audio(self, audio_path, include_diarization=True):
-        """
-        Complete audio analysis: transcribe + diarize
-        
-        Args:
-            audio_path (str): Path to audio file
-            include_diarization (bool): Whether to include speaker diarization
-            
-        Returns:
-            dict: Complete analysis with transcript and speakers
-        """
-        if not Path(audio_path).exists():
-            raise FileNotFoundError(f"Audio file not found: {audio_path}")
-        
-        print("\n" + "="*70)
-        print("🎤 SPEECH ANALYSIS")
-        print("="*70)
-        
-        # Step 1: Transcribe with Whisper
-        print("\n📝 Step 1: Transcribing audio...")
-        self._load_whisper()
-        
-        whisper_result = self.whisper_model.transcribe(
-            audio_path,
-            word_timestamps=True,
-            language='en'
-        )
-        
-        print(f"✓ Transcription complete!")
-        print(f"   - Duration: {whisper_result.get('duration', 0):.1f}s")
-        print(f"   - Segments: {len(whisper_result.get('segments', []))}")
-        
-        # If diarization not needed, return just transcript
-        if not include_diarization:
-            return {
-                'status': 'completed',
-                'text': whisper_result['text'],
-                'segments': whisper_result.get('segments', []),
-                'transcript': [{
-                    'speaker': 'SPEAKER_00',
-                    'text': whisper_result['text'],
-                    'start': 0.0,
-                    'end': whisper_result.get('duration', 0)
-                }],
-                'num_speakers': 1,
-                'speakers': ['SPEAKER_00']
-            }
-        
-        # Step 2: Diarize speakers
-        print("\n🎙️ Step 2: Identifying speakers...")
-        try:
-            self._load_diarization()
-            
-            diarization = self.diarization_pipeline(audio_path)
-            
-            # Convert to DataFrame
-            diarize_list = []
-            for turn, _, speaker in diarization.itertracks(yield_label=True):
-                diarize_list.append({
-                    'start': float(turn.start),
-                    'end': float(turn.end),
-                    'speaker': speaker,
-                    'duration': float(turn.end - turn.start)
-                })
-            
-            diarize_df = pd.DataFrame(diarize_list)
-            num_speakers = len(diarize_df['speaker'].unique())
-            
-            print(f"✓ Diarization complete!")
-            print(f"   - Speakers detected: {num_speakers}")
-            
-            for speaker in sorted(diarize_df['speaker'].unique()):
-                speaker_time = diarize_df[diarize_df['speaker'] == speaker]['duration'].sum()
-                speaker_turns = len(diarize_df[diarize_df['speaker'] == speaker])
-                print(f"   - {speaker}: {speaker_turns} turns, {speaker_time:.1f}s")
-            
-        except Exception as e:
-            print(f"⚠ Diarization failed: {e}")
-            # Return without diarization
-            return {
-                'status': 'completed',
-                'text': whisper_result['text'],
-                'segments': whisper_result.get('segments', []),
-                'transcript': [{
-                    'speaker': 'SPEAKER_00',
-                    'text': whisper_result['text'],
-                    'start': 0.0,
-                    'end': whisper_result.get('duration', 0)
-                }],
-                'num_speakers': 1,
-                'speakers': ['SPEAKER_00'],
-                'diarization_error': str(e)
-            }
-        
-        # Step 3: Align transcript with speakers
-        print("\n🔗 Step 3: Aligning transcript with speakers...")
-        aligned_transcript = self._align_transcript(whisper_result, diarize_df)
-        
-        print(f"✓ Alignment complete!")
-        print(f"   - Speaker turns: {len(aligned_transcript)}")
-        
-        print("\n" + "="*70)
-        print("✅ ANALYSIS COMPLETE")
-        print("="*70 + "\n")
-        
-        return {
-            'status': 'completed',
-            'text': whisper_result['text'],
-            'segments': whisper_result.get('segments', []),
-            'transcript': aligned_transcript,
-            'num_speakers': num_speakers,
-            'speakers': sorted(diarize_df['speaker'].unique())
-        }
-    
-    def _align_transcript(self, whisper_result, diarize_df):
-        """
-        Align Whisper segments with speaker diarization
-        
-        Returns:
-            list: Transcript segments with speaker labels
-        """
-        aligned = []
-        current_speaker = None
-        current_text = []
-        current_start = None
-        
-        for segment in whisper_result.get('segments', []):
-            seg_start = segment['start']
-            seg_end = segment['end']
-            seg_text = segment['text'].strip()
-            
-            # Find speaker at midpoint
-            midpoint = (seg_start + seg_end) / 2
-            matching = diarize_df[
-                (diarize_df['start'] <= midpoint) & 
-                (diarize_df['end'] >= midpoint)
-            ]
-            
-            if not matching.empty:
-                speaker = matching.iloc[0]['speaker']
-            else:
-                # Find closest
-                diarize_df['distance'] = diarize_df.apply(
-                    lambda x: min(abs(x['start'] - midpoint), abs(x['end'] - midpoint)),
-                    axis=1
-                )
-                speaker = diarize_df.loc[diarize_df['distance'].idxmin()]['speaker']
-            
-            # If speaker changed, save previous and start new
-            if speaker != current_speaker and current_text:
-                aligned.append({
-                    'speaker': current_speaker,
-                    'text': ' '.join(current_text),
-                    'start': current_start,
-                    'end': seg_start
-                })
-                current_text = []
-                current_start = None
-            
-            current_speaker = speaker
-            if current_start is None:
-                current_start = seg_start
-            current_text.append(seg_text)
-        
-        # Don't forget last segment
-        if current_text:
-            aligned.append({
-                'speaker': current_speaker,
-                'text': ' '.join(current_text),
-                'start': current_start,
-                'end': whisper_result['segments'][-1]['end']
-            })
-        
-        return aligned
-
-
-# Singleton instance
-_speech_service = None
-
-def get_speech_service():
-    """Get or create singleton speech analysis service"""
-    global _speech_service
-    if _speech_service is None:
-        _speech_service = SpeechAnalysisService()
-    return _speech_service
 
 
 def analyze_audio(audio_path, include_diarization=True):
     """
-    Main function: Complete speech analysis
-    
-    Args:
-        audio_path (str): Path to audio file
-        include_diarization (bool): Whether to include speaker diarization
-        
-    Returns:
-        dict: Complete analysis results
+    Transcribe with Whisper, diarize with Pyannote
     """
-    service = get_speech_service()
-    return service.analyze_audio(audio_path, include_diarization)
+    if not Path(audio_path).exists():
+        raise FileNotFoundError(f"Audio not found: {audio_path}")
+    
+    print("\n" + "="*70)
+    print("🎤 SPEECH ANALYSIS PIPELINE")
+    print("="*70)
+    
+    # ============================================================
+    # STEP 1: TRANSCRIBE WITH WHISPER
+    # ============================================================
+    print("\n[1/3] Transcribing with Whisper...")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    whisper_model = whisper.load_model("base", device=device)
+    
+    result = whisper_model.transcribe(audio_path, word_timestamps=True)
+    
+    text = result['text'].strip()
+    segments = result.get('segments', [])
+    
+    print(f"✓ Transcription complete! {len(segments)} segments")
+    
+    # If no diarization needed, return early
+    if not include_diarization:
+        return {
+            'status': 'completed',
+            'text': text,
+            'segments': segments,
+            'transcript': [{
+                'speaker': 'SPEAKER_00',
+                'text': text,
+                'start': 0.0,
+                'end': segments[-1]['end'] if segments else 0
+            }],
+            'num_speakers': 1,
+            'speakers': ['SPEAKER_00']
+        }
+    
+    # ============================================================
+    # STEP 2: DIARIZE WITH PYANNOTE
+    # ============================================================
+    print("\n[2/3] Running speaker diarization...")
+    
+    try:
+        from pyannote.audio import Pipeline
+        
+        hf_token = os.getenv('HF_TOKEN') or os.getenv('HUGGINGFACE_TOKEN')
+        if not hf_token:
+            raise ValueError("HF_TOKEN not found in .env")
+        
+        # Load diarization pipeline
+        diarization_pipeline = Pipeline.from_pretrained(
+            "pyannote/speaker-diarization-3.1",
+            use_auth_token=hf_token
+        )
+        
+        # Run diarization
+        diarization = diarization_pipeline(audio_path)
+        
+        # Convert to list of speaker segments
+        speaker_segments = []
+        for turn, _, speaker in diarization.itertracks(yield_label=True):
+            speaker_segments.append({
+                'start': turn.start,
+                'end': turn.end,
+                'speaker': speaker
+            })
+        
+        num_speakers = len(set([seg['speaker'] for seg in speaker_segments]))
+        print(f"✓ Diarization complete! Found {num_speakers} speakers")
+        
+    except Exception as e:
+        print(f"⚠️ Diarization failed: {e}")
+        print("   Returning transcription without speaker labels...")
+        
+        return {
+            'status': 'completed',
+            'text': text,
+            'segments': segments,
+            'transcript': [{
+                'speaker': 'SPEAKER_00',
+                'text': text,
+                'start': 0.0,
+                'end': segments[-1]['end'] if segments else 0
+            }],
+            'num_speakers': 1,
+            'speakers': ['SPEAKER_00'],
+            'diarization_error': str(e)
+        }
+    
+    # ============================================================
+    # STEP 3: MATCH TRANSCRIPTION TO SPEAKERS
+    # ============================================================
+    print("\n[3/3] Matching speakers to transcript...")
+    
+    # Assign speaker to each Whisper segment based on overlap
+    for segment in segments:
+        segment_start = segment['start']
+        segment_end = segment['end']
+        segment_mid = (segment_start + segment_end) / 2
+        
+        # Find which speaker was talking at the midpoint of this segment
+        assigned_speaker = 'SPEAKER_00'
+        for speaker_seg in speaker_segments:
+            if speaker_seg['start'] <= segment_mid <= speaker_seg['end']:
+                assigned_speaker = speaker_seg['speaker']
+                break
+        
+        segment['speaker'] = assigned_speaker
+    
+    # Build transcript with speaker labels
+    transcript = []
+    for segment in segments:
+        speaker = segment.get('speaker', 'SPEAKER_00')
+        seg_text = segment['text'].strip()
+        start = segment['start']
+        end = segment['end']
+        
+        # Merge consecutive segments from same speaker
+        if transcript and transcript[-1]['speaker'] == speaker:
+            transcript[-1]['text'] += ' ' + seg_text
+            transcript[-1]['end'] = end
+        else:
+            transcript.append({
+                'speaker': speaker,
+                'text': seg_text,
+                'start': start,
+                'end': end
+            })
+    
+    speakers = sorted(list(set([seg.get('speaker', 'SPEAKER_00') for seg in segments])))
+    
+    print(f"\n✅ COMPLETE - {num_speakers} speakers, {len(transcript)} turns")
+    print("="*70 + "\n")
+    
+    return {
+        'status': 'completed',
+        'text': text,
+        'segments': segments,
+        'transcript': transcript,
+        'num_speakers': num_speakers,
+        'speakers': speakers,
+        'language': result.get('language', 'unknown')
+    }
