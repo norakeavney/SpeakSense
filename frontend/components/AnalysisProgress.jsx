@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import SpeakerIdentification from './SpeakerIdentification';
 
 export default function AnalysisProgress({ jobId }) {
   const [status, setStatus] = useState(null);
@@ -100,6 +101,24 @@ export default function AnalysisProgress({ jobId }) {
               </div>
             )}
 
+            {/* Diarization */}
+            {status.results.diarization && (
+              <div className="p-3 bg-indigo-50 rounded">
+                <h5 className="font-semibold text-indigo-900 mb-2">🎙️ Speaker Diarization</h5>
+                <p><strong>Speakers detected:</strong> {status.results.diarization.diarization?.num_speakers || 0}</p>
+                {status.results.diarization.confirmed_speakers && (
+                  <div className="mt-2">
+                    <p className="font-semibold text-green-700">✅ Confirmed speakers:</p>
+                    <ul className="ml-4 mt-1">
+                      {Object.entries(status.results.diarization.confirmed_speakers).map(([id, name]) => (
+                        <li key={id} className="text-sm">{id} → {name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Speaker Metrics */}
             {status.results.speaker_metrics && (
               <div className="p-3 bg-purple-50 rounded">
@@ -134,6 +153,30 @@ export default function AnalysisProgress({ jobId }) {
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-700"><strong>Error:</strong> {status.error}</p>
         </div>
+      )}
+
+      {/* Speaker Identification - Show when diarization is done */}
+      {status.steps.diarization === 'done' && 
+       status.results.diarization && 
+       status.results.diarization.requires_user_confirmation &&
+       !status.results.diarization.confirmed_speakers && (
+        <SpeakerIdentification 
+          jobId={jobId}
+          onConfirm={(names) => {
+            console.log('Speakers confirmed:', names);
+            // Trigger a status refresh
+            setStatus(prev => ({
+              ...prev,
+              results: {
+                ...prev.results,
+                diarization: {
+                  ...prev.results.diarization,
+                  confirmed_speakers: names
+                }
+              }
+            }));
+          }}
+        />
       )}
     </div>
   );

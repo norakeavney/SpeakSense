@@ -3,6 +3,7 @@ import time
 import os
 from speech_analysis.db.analysis_jobs import AnalysisJobManager
 from speech_analysis.services.transcription import transcribe_audio
+from speech_analysis.services.speaker_diarization import diarize_and_suggest_speakers
 
 def start_real_processing(job_id, audio_path):
     """Start background processing for a job."""
@@ -50,9 +51,36 @@ def _process_job(job_id, audio_path):
         print("Transcription complete.")
         
         # ========================================
-        # STEP 2: SPEAKER METRICS (Fake for now)
+        # STEP 2: SPEAKER DIARIZATION (Real)
         # ========================================
-        print("\nSTEP 2/4: Speaker Metrics (placeholder)")
+        print("\nSTEP 2/5: Speaker Diarization + AI Suggestions")
+        AnalysisJobManager.update_step(job_id, "diarization", AnalysisJobManager.STEP_PROCESSING)
+        
+        try:
+            # Run diarization and get AI suggestions
+            diarization_result = diarize_and_suggest_speakers(
+                audio_path,
+                transcription_text=transcription_result.get('text')
+            )
+            
+            AnalysisJobManager.update_result(job_id, "diarization", diarization_result)
+            AnalysisJobManager.update_step(job_id, "diarization", AnalysisJobManager.STEP_DONE)
+            print(f"Diarization complete. Found {diarization_result['diarization']['num_speakers']} speakers.")
+            print("⏸️  Analysis paused - awaiting user confirmation of speaker identities")
+            
+        except Exception as e:
+            print(f"Diarization failed (non-critical): {str(e)}")
+            # Continue without diarization
+            AnalysisJobManager.update_result(job_id, "diarization", {
+                "error": str(e),
+                "note": "Diarization unavailable - continuing with other analyses"
+            })
+            AnalysisJobManager.update_step(job_id, "diarization", AnalysisJobManager.STEP_FAILED)
+        
+        # ========================================
+        # STEP 3: SPEAKER METRICS (Fake for now)
+        # ========================================
+        print("\nSTEP 3/5: Speaker Metrics (placeholder)")
         AnalysisJobManager.update_step(job_id, "speaker_metrics", AnalysisJobManager.STEP_PROCESSING)
         time.sleep(2)
         
@@ -68,9 +96,9 @@ def _process_job(job_id, audio_path):
         print("Speaker metrics complete.")
         
         # ========================================
-        # STEP 3: EMOTION (Fake for now)
+        # STEP 4: EMOTION (Fake for now)
         # ========================================
-        print("\nSTEP 3/4: Emotion Analysis (placeholder)")
+        print("\nSTEP 4/5: Emotion Analysis (placeholder)")
         AnalysisJobManager.update_step(job_id, "emotion", AnalysisJobManager.STEP_PROCESSING)
         time.sleep(2)
         
@@ -84,9 +112,9 @@ def _process_job(job_id, audio_path):
         print("Emotion analysis complete.")
         
         # ========================================
-        # STEP 4: TOPICS (Fake for now)
+        # STEP 5: TOPICS (Fake for now)
         # ========================================
-        print("\nSTEP 4/4: Topic Extraction (placeholder)")
+        print("\nSTEP 5/5: Topic Extraction (placeholder)")
         AnalysisJobManager.update_step(job_id, "topics", AnalysisJobManager.STEP_PROCESSING)
         time.sleep(2)
         

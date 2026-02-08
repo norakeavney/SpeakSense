@@ -194,6 +194,7 @@ def analysis_status(request, job_id):
             'status': job['status'],
             'steps': job['steps'],
             'results': job.get('results', {}),
+            'speaker_confirmations': job.get('speaker_confirmations', {}),
             'error': job.get('error'),
             'created_at': job['created_at'].isoformat() if job.get('created_at') else None,
             'updated_at': job['updated_at'].isoformat() if job.get('updated_at') else None
@@ -202,5 +203,121 @@ def analysis_status(request, job_id):
     except Exception as e:
         return Response({
             'error': 'Failed to fetch job status',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+def confirm_speakers(request, job_id):
+    """
+    Confirm speaker identities with user-provided names
+    
+    Expects JSON body:
+    {
+        "speakers": {
+            "SPEAKER_00": "John Doe",
+            "SPEAKER_01": "Jane Smith"
+        }
+    }
+    
+    Args:
+        job_id (str): UUID of the analysis job
+        
+    Returns:
+        JSON confirmation response
+    """
+    try:
+        # Validate job exists
+        job = AnalysisJobManager.get_job(job_id)
+        
+        if not job:
+            return Response({
+                'error': 'Job not found',
+                'job_id': job_id
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get speaker names from request
+        speaker_names = request.data.get('speakers', {})
+        
+        if not speaker_names:
+            return Response({
+                'error': 'No speaker names provided',
+                'details': 'Expected "speakers" field with speaker_id -> name mapping'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate that we have diarization results
+        diarization = job.get('results', {}).get('diarization')
+        if not diarization:
+            return Response({
+                'error': 'No diarization results found',
+                'details': 'Diarization must be complete before confirming speakers'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Update speaker confirmations
+        AnalysisJobManager.update_speaker_confirmations(job_id, speaker_names)
+        
+        # Update diarization results with confirmed names
+        confirmed_diarization = diarization.copy()
+        confirmed_diarization['confirmed_speakers'] = speaker_names
+        confirmed_diarization['status'] = 'confirmed'
+        AnalysisJobManager.update_result(job_id, 'diarization', confirmed_diarization)
+        
+        return Response({
+            'message': 'Speaker identities confirmed successfully',
+            'job_id': job_id,
+            'confirmed_speakers': speaker_names,
+            'num_speakers': len(speaker_names)
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            'error': 'Failed to confirm speakers',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def get_speaker_suggestions(request, job_id):
+    """
+    Get AI-generated speaker name suggestions for a job
+    
+    Args:
+        job_id (str): UUID of the analysis job
+        
+    Returns:
+        JSON with speaker suggestions and reasoning
+    """
+    try:
+        # Fetch job from MongoDB
+        job = AnalysisJobManager.get_job(job_id)
+        
+        if not job:
+            return Response({
+                'error': 'Job not found',
+                'job_id': job_id
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get diarization results
+        diarization = job.get('results', {}).get('diarization')
+        
+        if not diarization:
+            return Response({
+                'error': 'Diarization not yet complete',
+                'job_id': job_id
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Return suggestions
+        suggestions = diarization.get('suggestions', {})
+        
+        return Response({
+            'job_id': job_id,
+            'suggestions': suggestions,
+            'num_speakers': len(suggestions),
+            'requires_confirmation': diarization.get('requires_user_confirmation', True)
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            'error': 'Failed to fetch speaker suggestions',
             'details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

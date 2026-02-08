@@ -53,11 +53,13 @@ class AnalysisJobManager:
             'status': AnalysisJobManager.STATUS_QUEUED,
             'steps': {
                 'transcription': AnalysisJobManager.STEP_PENDING,
+                'diarization': AnalysisJobManager.STEP_PENDING,
                 'speaker_metrics': AnalysisJobManager.STEP_PENDING,
                 'emotion': AnalysisJobManager.STEP_PENDING,
                 'topics': AnalysisJobManager.STEP_PENDING
             },
             'results': {},
+            'speaker_confirmations': {},  # Store user-confirmed speaker names
             'error': None,
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
@@ -163,3 +165,37 @@ class AnalysisJobManager:
                 }
             }
         )
+    
+    @staticmethod
+    def update_speaker_confirmations(job_id, speaker_names):
+        """
+        Update confirmed speaker names
+        
+        Args:
+            job_id (str): The job UUID
+            speaker_names (dict): Map of speaker_id -> confirmed name
+        """
+        collection = AnalysisJobManager.get_collection()
+        collection.update_one(
+            {'job_id': job_id},
+            {
+                '$set': {
+                    'speaker_confirmations': speaker_names,
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+    
+    @staticmethod
+    def get_speaker_confirmations(job_id):
+        """
+        Get confirmed speaker names for a job
+        
+        Args:
+            job_id (str): The job UUID
+            
+        Returns:
+            dict: Map of speaker_id -> confirmed name, or empty dict
+        """
+        job = AnalysisJobManager.get_job(job_id)
+        return job.get('speaker_confirmations', {}) if job else {}

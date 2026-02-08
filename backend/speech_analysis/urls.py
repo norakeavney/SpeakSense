@@ -14,4 +14,8 @@ urlpatterns = [
     
     # Analysis job status endpoint
     path('analysis/<str:job_id>/status/', views.analysis_status, name='analysis_status'),
+    
+    # Speaker identification endpoints
+    path('analysis/<str:job_id>/speakers/suggestions/', views.get_speaker_suggestions, name='get_speaker_suggestions'),
+    path('analysis/<str:job_id>/speakers/confirm/', views.confirm_speakers, name='confirm_speakers'),
 ]
