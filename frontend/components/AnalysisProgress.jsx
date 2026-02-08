@@ -93,31 +93,45 @@ export default function AnalysisProgress({ jobId }) {
           <h4 className="font-semibold mb-3">Results:</h4>
           <div className="space-y-3 text-sm">
             
-            {/* Transcription */}
-            {status.results.transcription && (
+            {/* Combined Transcript with Speakers */}
+            {status.results.diarization && status.results.diarization.transcript && status.results.diarization.status === 'completed' ? (
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-indigo-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h5 className="font-semibold text-indigo-900 text-lg">🎙️ Transcript with Speakers</h5>
+                  <span className="text-sm bg-indigo-200 px-3 py-1 rounded-full font-semibold">
+                    {status.results.diarization.num_speakers} {status.results.diarization.num_speakers === 1 ? 'Speaker' : 'Speakers'}
+                  </span>
+                </div>
+                
+                {/* Speaker-labeled transcript */}
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {status.results.diarization.transcript.map((turn, idx) => (
+                    <div key={idx} className="bg-white p-3 rounded shadow-sm border-l-4 border-indigo-400">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-indigo-700 text-sm">
+                          {turn.speaker}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {turn.start?.toFixed(1)}s - {turn.end?.toFixed(1)}s
+                        </span>
+                      </div>
+                      <p className="text-gray-800">{turn.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : status.results.transcription ? (
+              /* Fallback: Show plain transcription if diarization failed */
               <div className="p-3 bg-blue-50 rounded">
                 <h5 className="font-semibold text-blue-900 mb-2">📝 Transcription</h5>
                 <p className="text-gray-700">{status.results.transcription.text}</p>
-              </div>
-            )}
-
-            {/* Diarization */}
-            {status.results.diarization && (
-              <div className="p-3 bg-indigo-50 rounded">
-                <h5 className="font-semibold text-indigo-900 mb-2">🎙️ Speaker Diarization</h5>
-                <p><strong>Speakers detected:</strong> {status.results.diarization.diarization?.num_speakers || 0}</p>
-                {status.results.diarization.confirmed_speakers && (
-                  <div className="mt-2">
-                    <p className="font-semibold text-green-700">✅ Confirmed speakers:</p>
-                    <ul className="ml-4 mt-1">
-                      {Object.entries(status.results.diarization.confirmed_speakers).map(([id, name]) => (
-                        <li key={id} className="text-sm">{id} → {name}</li>
-                      ))}
-                    </ul>
-                  </div>
+                {status.results.diarization?.error && (
+                  <p className="text-xs text-orange-600 mt-2">
+                    ⚠️ Speaker identification unavailable: {status.results.diarization.error}
+                  </p>
                 )}
               </div>
-            )}
+            ) : null}
 
             {/* Speaker Metrics */}
             {status.results.speaker_metrics && (
