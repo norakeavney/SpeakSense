@@ -3,6 +3,9 @@ import time
 import os
 from speech_analysis.db.analysis_jobs import AnalysisJobManager
 from speech_analysis.services.speech_service import analyze_audio  # One simple import!
+from speech_analysis.services.speaker_metrics import calculate_speaker_metrics  # NEW!
+import librosa  
+
 
 def start_real_processing(job_id, audio_path):
     """Start background processing for a job."""
@@ -75,22 +78,37 @@ def _process_job(job_id, audio_path):
             print(f"✓ Complete analysis done! {analysis_result['num_speakers']} speakers detected.")
         
         # ========================================
-        # STEP 2: SPEAKER METRICS (Fake for now)
+        # STEP 2: SPEAKER METRICS (REAL!)
         # ========================================
-        print("\nSTEP 2/4: Speaker Metrics (placeholder)")
+        print("\nSTEP 2/4: Speaker Metrics")
         AnalysisJobManager.update_step(job_id, "speaker_metrics", AnalysisJobManager.STEP_PROCESSING)
-        time.sleep(2)
         
-        speaker_metrics_result = {
-            "total_duration_seconds": 123.4,
-            "words_per_minute": 140,
-            "speakers_detected": 1,
-            "note": "Real implementation coming in Step B2"
-        }
+        # Get audio duration
+        try:
+            audio, sr = librosa.load(audio_path, sr=None)
+            audio_duration = len(audio) / sr
+            print(f"✓ Audio duration: {audio_duration:.2f} seconds")
+        except Exception as e:
+            print(f"Could not load audio for duration: {e}")
+            audio_duration = 0
+        
+        # Calculate real speaker metrics
+        speaker_metrics_result = calculate_speaker_metrics(
+            transcription_result=analysis_result,
+            diarization_result=analysis_result
+        )
+
+        # DEBUG: Print what we got
+        print("\n" + "="*60)
+        print("📊 SPEAKER METRICS RESULT:")
+        print("="*60)
+        import json
+        print(json.dumps(speaker_metrics_result, indent=2))
+        print("="*60 + "\n")
         
         AnalysisJobManager.update_result(job_id, "speaker_metrics", speaker_metrics_result)
         AnalysisJobManager.update_step(job_id, "speaker_metrics", AnalysisJobManager.STEP_DONE)
-        print("Speaker metrics complete.")
+        print("✓ Speaker metrics complete.")
         
         # ========================================
         # STEP 3: EMOTION (Fake for now)
