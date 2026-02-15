@@ -4,7 +4,12 @@ import os
 from speech_analysis.db.analysis_jobs import AnalysisJobManager
 from speech_analysis.services.speech_service import analyze_audio  # One simple import!
 from speech_analysis.services.speaker_metrics import calculate_speaker_metrics  # NEW!
-from speech_analysis.services.emotion_analysis import analyze_emotions, generate_emotion_summary  # Emotion analysis!
+from speech_analysis.services.emotion_analysis import (
+    analyze_emotions, 
+    generate_emotion_summary,
+    analyze_audio_emotions,  # Audio emotion analysis
+    fuse_text_and_audio_emotions  # Fusion
+)
 import librosa  
 
 
@@ -112,39 +117,56 @@ def _process_job(job_id, audio_path):
         print("✓ Speaker metrics complete.")
         
         # ========================================
-        # STEP 3: EMOTION ANALYSIS
+        # STEP 3: EMOTION ANALYSIS (Text + Audio Fusion)
         # ========================================
-        print("\nSTEP 3/4: Emotion Analysis")
+        print("\nSTEP 3/4: Emotion Analysis (Text + Audio)")
         AnalysisJobManager.update_step(job_id, "emotion", AnalysisJobManager.STEP_PROCESSING)
         
         try:
-            # Use the transcript data from diarization for emotion analysis
+            # Analyze emotions from TEXT (DistilBERT)
+            print("  → Analyzing text emotions with DistilBERT...")
             transcript_segments = []
-            if diarization_result.get('transcript'):
-                transcript_segments = diarization_result['transcript']
-            elif transcription_result.get('text'):
+            if analysis_result.get('transcript'):
+                transcript_segments = analysis_result['transcript']
+            elif analysis_result.get('text'):
                 # Fallback: use plain transcription if no diarization
                 transcript_segments = [{
-                    'text': transcription_result['text'],
+                    'text': analysis_result['text'],
                     'start': 0.0,
-                    'end': transcription_result.get('duration', 0.0)
+                    'end': analysis_result.get('duration', 0.0)
                 }]
             
-            # Perform emotion analysis
-            emotion_result = analyze_emotions(transcript_segments)
+            text_emotions = analyze_emotions(transcript_segments)
+            print(f"  ✓ Text emotions: {text_emotions.get('overall_sentiment')}")
+            
+            # Analyze emotions from AUDIO (Wav2Vec2)
+            print("  → Analyzing audio emotions with Wav2Vec2...")
+            audio_emotions = analyze_audio_emotions(audio_path, transcript_segments)
+            print(f"  ✓ Audio emotions: {audio_emotions.get('overall_sentiment')}")
+            
+            # FUSE both analyses
+            print("  → Fusing text and audio predictions...")
+            emotion_result = fuse_text_and_audio_emotions(text_emotions, audio_emotions)
             
             # Generate human-readable summary
             emotion_result['summary'] = generate_emotion_summary(emotion_result)
             
             AnalysisJobManager.update_result(job_id, "emotion", emotion_result)
             AnalysisJobManager.update_step(job_id, "emotion", AnalysisJobManager.STEP_DONE)
-            print("✓ Emotion analysis complete.")
+            print("✓ Emotion analysis complete (fused).")
             print(f"  Overall sentiment: {emotion_result['overall_sentiment']}")
             print(f"  Timeline points: {len(emotion_result.get('timeline', []))}")
+            
+            # Print fusion info
+            if isinstance(emotion_result.get('fusion_info'), dict):
+                fusion = emotion_result['fusion_info']
+                print(f"  Models used: Text={fusion.get('text_model')}, Audio={fusion.get('audio_model')}")
         
         except Exception as e:
             error_msg = f"Emotion analysis failed: {str(e)}"
             print(f"✗ {error_msg}")
+            import traceback
+            traceback.print_exc()
             AnalysisJobManager.update_result(job_id, "emotion", {
                 'error': error_msg,
                 'overall_sentiment': 'neutral'

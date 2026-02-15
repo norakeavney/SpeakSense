@@ -14,6 +14,12 @@ export default function AnalysisProgress({ jobId }) {
         const response = await fetch(`http://localhost:8000/api/analysis/${jobId}/status/`);
         if (!response.ok) throw new Error('Failed to fetch status');
         const data = await response.json();
+        
+        // Debug: Log emotion data
+        if (data.results?.emotion) {
+          console.log('🎭 EMOTION DATA:', JSON.stringify(data.results.emotion, null, 2));
+        }
+        
         setStatus(data);
 
         // Stop polling if done or failed
