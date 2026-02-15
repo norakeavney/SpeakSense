@@ -4,6 +4,7 @@ import os
 from speech_analysis.db.analysis_jobs import AnalysisJobManager
 from speech_analysis.services.speech_service import analyze_audio  # One simple import!
 from speech_analysis.services.speaker_metrics import calculate_speaker_metrics  # NEW!
+from speech_analysis.services.emotion_analysis import analyze_emotions, generate_emotion_summary  # Emotion analysis!
 import librosa  
 
 
@@ -111,20 +112,44 @@ def _process_job(job_id, audio_path):
         print("✓ Speaker metrics complete.")
         
         # ========================================
-        # STEP 3: EMOTION (Fake for now)
+        # STEP 3: EMOTION ANALYSIS
         # ========================================
-        print("\nSTEP 3/4: Emotion Analysis (placeholder)")
+        print("\nSTEP 3/4: Emotion Analysis")
         AnalysisJobManager.update_step(job_id, "emotion", AnalysisJobManager.STEP_PROCESSING)
-        time.sleep(2)
         
-        emotion_result = {
-            "overall_sentiment": "neutral",
-            "note": "Real implementation coming in Step B3"
-        }
+        try:
+            # Use the transcript data from diarization for emotion analysis
+            transcript_segments = []
+            if diarization_result.get('transcript'):
+                transcript_segments = diarization_result['transcript']
+            elif transcription_result.get('text'):
+                # Fallback: use plain transcription if no diarization
+                transcript_segments = [{
+                    'text': transcription_result['text'],
+                    'start': 0.0,
+                    'end': transcription_result.get('duration', 0.0)
+                }]
+            
+            # Perform emotion analysis
+            emotion_result = analyze_emotions(transcript_segments)
+            
+            # Generate human-readable summary
+            emotion_result['summary'] = generate_emotion_summary(emotion_result)
+            
+            AnalysisJobManager.update_result(job_id, "emotion", emotion_result)
+            AnalysisJobManager.update_step(job_id, "emotion", AnalysisJobManager.STEP_DONE)
+            print("✓ Emotion analysis complete.")
+            print(f"  Overall sentiment: {emotion_result['overall_sentiment']}")
+            print(f"  Timeline points: {len(emotion_result.get('timeline', []))}")
         
-        AnalysisJobManager.update_result(job_id, "emotion", emotion_result)
-        AnalysisJobManager.update_step(job_id, "emotion", AnalysisJobManager.STEP_DONE)
-        print("Emotion analysis complete.")
+        except Exception as e:
+            error_msg = f"Emotion analysis failed: {str(e)}"
+            print(f"✗ {error_msg}")
+            AnalysisJobManager.update_result(job_id, "emotion", {
+                'error': error_msg,
+                'overall_sentiment': 'neutral'
+            })
+            AnalysisJobManager.update_step(job_id, "emotion", AnalysisJobManager.STEP_DONE)
         
         # ========================================
         # STEP 4: TOPICS (Fake for now)

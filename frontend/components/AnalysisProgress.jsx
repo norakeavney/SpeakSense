@@ -219,11 +219,164 @@ export default function AnalysisProgress({ jobId }) {
             )}
 
 
-            {/* Emotion */}
+            {/* Emotion Analysis */}
             {status.results.emotion && (
-              <div className="p-3 bg-yellow-50 rounded">
-                <h5 className="font-semibold text-yellow-900 mb-2">Emotion</h5>
-                <p><strong>Overall:</strong> {status.results.emotion.overall_sentiment}</p>
+              <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border-2 border-yellow-200">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <h5 className="font-semibold text-yellow-900 text-lg">Emotion Analysis</h5>
+                    {status.results.emotion.model_used && (
+                      <span className="text-xs bg-yellow-100 px-2 py-1 rounded-full text-yellow-700">
+                        {status.results.emotion.model_used === 'distilbert' ? '🤖 AI-Powered' : '📝 Keyword-Based'}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-sm bg-yellow-200 px-3 py-1 rounded-full font-semibold capitalize">
+                    Overall: {status.results.emotion.overall_sentiment}
+                  </span>
+                </div>
+
+                {/* Summary */}
+                {status.results.emotion.summary && (
+                  <div className="mb-4 p-3 bg-white rounded-lg shadow-sm border border-yellow-100">
+                    <p className="text-sm text-gray-700 leading-relaxed">{status.results.emotion.summary}</p>
+                  </div>
+                )}
+
+                {/* Emotion Distribution */}
+                {status.results.emotion.emotion_distribution && (
+                  <div className="mb-4">
+                    <h6 className="font-semibold text-yellow-800 mb-2 text-sm">Emotion Distribution</h6>
+                    <div className="space-y-2">
+                      {Object.entries(status.results.emotion.emotion_distribution)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([emotion, percentage]) => {
+                          const emotionColors = {
+                            'happy': 'bg-green-500',
+                            'sad': 'bg-blue-500',
+                            'angry': 'bg-red-500',
+                            'neutral': 'bg-gray-400',
+                            'fear': 'bg-purple-500',
+                            'surprise': 'bg-yellow-500',
+                            'disgust': 'bg-orange-500'
+                          };
+                          const emotionEmojis = {
+                            'happy': '😊',
+                            'sad': '😢',
+                            'angry': '😠',
+                            'neutral': '😐',
+                            'fear': '😨',
+                            'surprise': '😮',
+                            'disgust': '🤢'
+                          };
+                          
+                          return (
+                            <div key={emotion} className="bg-white p-2 rounded shadow-sm">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm font-medium capitalize flex items-center gap-2">
+                                  <span className="text-lg">{emotionEmojis[emotion] || '🎭'}</span>
+                                  {emotion}
+                                </span>
+                                <span className="text-sm font-bold">{(percentage * 100).toFixed(1)}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                  className={`h-2 rounded-full ${emotionColors[emotion] || 'bg-gray-500'}`}
+                                  style={{ width: `${percentage * 100}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Emotion Timeline */}
+                {status.results.emotion.timeline && status.results.emotion.timeline.length > 0 && (
+                  <div>
+                    <h6 className="font-semibold text-yellow-800 mb-2 text-sm">Emotion Timeline</h6>
+                    <div className="bg-white p-3 rounded shadow-sm max-h-64 overflow-y-auto">
+                      <div className="space-y-2">
+                        {status.results.emotion.timeline.map((point, idx) => {
+                          const emotionColors = {
+                            'happy': 'border-green-400 bg-green-50 text-green-700',
+                            'sad': 'border-blue-400 bg-blue-50 text-blue-700',
+                            'angry': 'border-red-400 bg-red-50 text-red-700',
+                            'neutral': 'border-gray-400 bg-gray-50 text-gray-700',
+                            'fear': 'border-purple-400 bg-purple-50 text-purple-700',
+                            'surprise': 'border-yellow-400 bg-yellow-50 text-yellow-700',
+                            'disgust': 'border-orange-400 bg-orange-50 text-orange-700'
+                          };
+                          const emotionEmojis = {
+                            'happy': '😊',
+                            'sad': '😢',
+                            'angry': '😠',
+                            'neutral': '😐',
+                            'fear': '😨',
+                            'surprise': '😮',
+                            'disgust': '🤢'
+                          };
+                          
+                          return (
+                            <div
+                              key={idx}
+                              className={`flex items-center justify-between p-2 rounded border-l-4 ${emotionColors[point.emotion] || 'border-gray-400 bg-gray-50'}`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="text-xl">{emotionEmojis[point.emotion] || '🎭'}</span>
+                                <div>
+                                  <span className={`font-semibold capitalize text-sm ${emotionColors[point.emotion]?.split(' ')[2] || 'text-gray-700'}`}>
+                                    {point.emotion}
+                                  </span>
+                                  <span className="text-xs text-gray-500 ml-2">
+                                    @ {point.timestamp.toFixed(1)}s
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-xs text-gray-500">Confidence</span>
+                                <div className="font-semibold text-sm">{(point.confidence * 100).toFixed(0)}%</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Per-Speaker Emotions (if available) */}
+                {status.results.emotion.per_speaker_emotions && (
+                  <div className="mt-4 pt-4 border-t border-yellow-200">
+                    <h6 className="font-semibold text-yellow-800 mb-2 text-sm">Speaker Emotions</h6>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {Object.entries(status.results.emotion.per_speaker_emotions).map(([speaker, data]) => {
+                        const emotionEmojis = {
+                          'happy': '😊',
+                          'sad': '😢',
+                          'angry': '😠',
+                          'neutral': '😐',
+                          'fear': '😨',
+                          'surprise': '😮',
+                          'disgust': '🤢'
+                        };
+                        
+                        return (
+                          <div key={speaker} className="bg-white p-2 rounded shadow-sm border border-yellow-100">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-xs text-gray-700">{speaker}</span>
+                              <div className="flex items-center gap-1">
+                                <span className="text-lg">{emotionEmojis[data.dominant_emotion] || '🎭'}</span>
+                                <span className="text-xs capitalize">{data.dominant_emotion}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
