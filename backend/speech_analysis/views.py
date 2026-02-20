@@ -8,6 +8,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 from datetime import datetime
 import os
 from pathlib import Path
+from django.conf import settings
 
 from speech_analysis.workers.real_processor import start_real_processing
 from .serializers import AudioUploadSerializer
@@ -112,7 +113,8 @@ def upload_audio(request):
     unique_filename = f"{timestamp}_{original_name}"
     
     # Save file to disk
-    file_path = Path('media/audio_uploads') / unique_filename
+    file_path = Path(settings.MEDIA_ROOT) / 'audio_uploads' / unique_filename
+    file_path.parent.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
     
     with open(file_path, 'wb+') as destination:
         for chunk in audio_file.chunks():

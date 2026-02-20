@@ -37,18 +37,17 @@ def get_emotion_classifier():
     if _emotion_classifier is None:
         try:
             logger.info("Loading DistilBERT emotion classifier...")
-            model_name = "j-hartmann/emotion-english-distilroberta-base"
+            model_name = "cardiffnlp/twitter-roberta-base-emotion"
             _emotion_classifier = pipeline(
                 "text-classification",
                 model=model_name,
-                top_k=None,  # Return all emotion scores
-                device=0 if torch.cuda.is_available() else -1
+                top_k=None,
+                device=-1  # Force CPU to avoid GPU issues
             )
-            logger.info("✓ Emotion classifier loaded successfully")
+            logger.info("✓ DistilBERT loaded successfully")
         except Exception as e:
-            logger.error(f"Failed to load DistilBERT model: {e}")
-            logger.error(f"Error details: {str(e)}", exc_info=True)
-            logger.warning("Falling back to keyword-based emotion detection")
+            logger.warning(f"Failed to load DistilBERT: {str(e)}")
+            logger.warning("Using keyword-based fallback")
             _emotion_classifier = "fallback"
     return _emotion_classifier
 
@@ -569,37 +568,20 @@ def get_audio_emotion_model():
     global _audio_emotion_model, _audio_emotion_processor
     
     if _audio_emotion_model is None:
-        # Try multiple models in order of preference
-        models_to_try = [
-            ("superb/wav2vec2-base-superb-er", "superb"),
-            ("ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition", "ehcalabres"),
-        ]
-        
-        for model_name, model_type in models_to_try:
-            try:
-                logger.info(f"Attempting to load Wav2Vec2 model: {model_name}")
-                
-                _audio_emotion_processor = Wav2Vec2Processor.from_pretrained(model_name)
-                _audio_emotion_model = Wav2Vec2ForSequenceClassification.from_pretrained(model_name)
-                
-                # Move to GPU if available
-                device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-                _audio_emotion_model.to(device)
-                _audio_emotion_model.eval()
-                
-                # Store which model type was loaded
-                _audio_emotion_model.model_type = model_type
-                
-                logger.info(f"✓ Wav2Vec2 emotion model loaded: {model_name} on {device}")
-                break  # Success! Stop trying other models
-                
-            except Exception as e:
-                logger.warning(f"Failed to load {model_name}: {str(e)}")
-                continue  # Try next model
-        
-        # If all models failed
-        if _audio_emotion_model is None:
-            logger.error("All Wav2Vec2 models failed to load")
+        try:
+            logger.info("Loading Wav2Vec2 emotion model...")
+            model_name = "superb/wav2vec2-base-superb-er"
+            
+            _audio_emotion_processor = Wav2Vec2Processor.from_pretrained(model_name)
+            _audio_emotion_model = Wav2Vec2ForSequenceClassification.from_pretrained(model_name)
+            
+            device = torch.device('cpu')  # Force CPU for stability
+            _audio_emotion_model.to(device)
+            _audio_emotion_model.eval()
+            
+            logger.info(f"✓ Wav2Vec2 loaded successfully")
+        except Exception as e:
+            logger.warning(f"Failed to load Wav2Vec2: {str(e)}")
             _audio_emotion_model = "failed"
             _audio_emotion_processor = "failed"
     
@@ -624,6 +606,19 @@ def analyze_audio_emotions(audio_path: str, transcript_data: List[Dict] = None) 
             - avg_confidence: average confidence (for fusion)
     """
     logger.info(f"Starting audio emotion analysis for: {audio_path}")
+
+    # FIX: Handle missing audio path gracefully
+    if not audio_path:
+        logger.warning("No audio path provided")
+    return {
+        'overall_sentiment': 'neutral',
+        'timeline': [],
+        'emotion_distribution': {'neutral': 1.0},
+        'model_used': 'none',
+        'avg_confidence': 0.0,
+        'error': 'No audio path provided'
+    }
+
     
     model, processor = get_audio_emotion_model()
     

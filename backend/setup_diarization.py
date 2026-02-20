@@ -97,15 +97,18 @@ def test_diarization():
     try:
         import torch
         from pyannote.audio import Pipeline
+        from huggingface_hub import login
         
         print("📦 Loading pyannote pipeline...")
         
         device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"   Using device: {device}")
         
+        # Login to HuggingFace first
+        login(add_to_git_credential=False)
+        
         pipeline = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization-3.1",
-            use_auth_token=True
+            "pyannote/speaker-diarization-3.1"
         )
         
         print("✅ Pipeline loaded successfully!")

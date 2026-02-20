@@ -4,7 +4,6 @@ Clean separation: Whisper for transcription, Pyannote for diarization
 """
 import whisper
 import torch
-import pandas as pd
 import os
 from pathlib import Path
 
@@ -62,7 +61,7 @@ def analyze_audio(audio_path, include_diarization=True):
         if not hf_token:
             raise ValueError("HF_TOKEN not found in .env")
         
-        # Load diarization pipeline
+        # Load diarization pipeline with use_auth_token (older huggingface_hub)
         diarization_pipeline = Pipeline.from_pretrained(
             "pyannote/speaker-diarization-3.1",
             use_auth_token=hf_token
