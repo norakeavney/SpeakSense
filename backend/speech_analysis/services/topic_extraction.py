@@ -1,45 +1,150 @@
 import re
+import os
 from collections import Counter
 
 try:
     from keybert import KeyBERT
     from sklearn.feature_extraction.text import CountVectorizer
+    from sentence_transformers import SentenceTransformer, util
     _KEYBERT_AVAILABLE = True
 except ImportError:
     _KEYBERT_AVAILABLE = False
 
+try:
+    from openai import OpenAI
+    _OPENAI_AVAILABLE = True
+except ImportError:
+    _OPENAI_AVAILABLE = False
+
+# ── Models loaded once, reused ──────────────────────────────
 _kw_model = None
+_embed_model = None
+_openai_client = None
 
 _FILLER_WORDS = ["um", "uh", "like", "you know", "yeah", "ok", "right", "oh"]
 
-_BAD_PHRASE_KEYWORDS = [
-    "really", "talked", "run", "long", "given", "make", "exception"
-]
-
 _BASIC_STOPWORDS = {
-    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has", "have",
-    "he", "in", "is", "it", "its", "of", "on", "that", "the", "to", "was", "were",
-    "will", "with", "we", "you", "they", "this", "those", "these", "i", "me", "my",
+    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has",
+    "have", "he", "in", "is", "it", "its", "of", "on", "that", "the", "to",
+    "was", "were", "will", "with", "we", "you", "they", "this", "those",
+    "these", "i", "me", "my",
 }
 
+
 def _clean_text(text: str) -> str:
+    """Remove filler words and extra whitespace."""
     text = (text or "").lower()
     for fw in _FILLER_WORDS:
         text = re.sub(rf'\b{re.escape(fw)}\b', '', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
+    return re.sub(r'\s+', ' ', text).strip()
 
-def _filter_topics(topics: list) -> list:
-    cleaned = []
+
+def _structural_filter(topics: list) -> list:
+    """
+    Filter bad phrases using universal rules - no hardcoded topic words.
+    Works for ANY debate type.
+    """
+    kept = []
     for phrase, score in topics:
-        if any(bad in phrase for bad in _BAD_PHRASE_KEYWORDS):
+        words = phrase.split()
+
+        # Must have a minimum relevance score
+        if score < 0.30:
             continue
-        if len(phrase.split()) == 1 and score < 0.30:
+
+        # Skip phrases containing digits (catches "16 19th century" etc.)
+        if any(w.isdigit() for w in words):
             continue
-        cleaned.append((phrase, score))
-    return cleaned
+
+        # Single words need a higher score to be considered a topic
+        if len(words) == 1 and score < 0.45:
+            continue
+
+        # Skip very short word fragments (avg word length under 3 chars)
+        if sum(len(w) for w in words) / len(words) < 3:
+            continue
+
+        kept.append((phrase, score))
+    return kept
+
+
+def _generate_summary(text: str) -> str:
+    """
+    Ask OpenAI to summarize the debate transcript.
+    This summary becomes our 'anchor' - topics are compared against it
+    so only relevant ones survive.
+    """
+    global _openai_client
+    try:
+        if not _OPENAI_AVAILABLE:
+            return ""
+        if _openai_client is None:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                return ""
+            _openai_client = OpenAI(api_key=api_key)
+
+        # First 3000 words is enough context for a summary
+        truncated = " ".join(text.split()[:3000])
+
+        response = _openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{
+                "role": "user",
+                "content": (
+                    "Summarize the main topics and arguments in this debate transcript "
+                    "in 3-4 sentences. Focus only on the key issues debated:\n\n"
+                    + truncated
+                )
+            }],
+            max_tokens=150,
+            temperature=0.3
+        )
+        summary = response.choices[0].message.content.strip()
+        print(f"  → Summary: {summary[:100]}...")
+        return summary
+
+    except Exception as e:
+        print(f"  → Summary failed: {e}")
+        return ""
+
+
+def _semantic_rerank(topics: list, anchor_text: str) -> list:
+    """
+    Score each topic phrase against the debate summary using cosine similarity.
+    Phrases unrelated to the actual debate content get dropped.
+    """
+    global _embed_model
+    if not anchor_text or not topics:
+        return topics
+
+    try:
+        if _embed_model is None:
+            # Same model as KeyBERT - already cached, no extra download
+            _embed_model = SentenceTransformer("all-MiniLM-L6-v2")
+
+        anchor_emb = _embed_model.encode(anchor_text, convert_to_tensor=True)
+
+        reranked = []
+        for phrase, score in topics:
+            phrase_emb = _embed_model.encode(phrase, convert_to_tensor=True)
+            similarity = float(util.cos_sim(anchor_emb, phrase_emb))
+
+            # Only keep phrases semantically related to the actual debate
+            if similarity >= 0.25:
+                combined = (score * 0.6) + (similarity * 0.4)
+                reranked.append((phrase, combined))
+
+        reranked.sort(key=lambda x: x[1], reverse=True)
+        return reranked
+
+    except Exception as e:
+        print(f"  → Semantic reranking failed: {e}")
+        return topics
+
 
 def _fallback_topics(text: str, max_topics: int, max_keywords: int) -> dict:
+    """Simple word frequency fallback if KeyBERT is unavailable."""
     tokens = [
         t for t in re.findall(r"[a-zA-Z][a-zA-Z']{1,}", text)
         if t.lower() not in _BASIC_STOPWORDS and len(t) > 2
@@ -48,13 +153,23 @@ def _fallback_topics(text: str, max_topics: int, max_keywords: int) -> dict:
         return {"main_topics": [], "keywords": [], "method": "fallback"}
     freq = Counter(tokens)
     keywords = [w for w, _ in freq.most_common(max_keywords)]
-    return {
-        "main_topics": keywords[:max_topics],
-        "keywords": keywords,
-        "method": "fallback"
-    }
+    return {"main_topics": keywords[:max_topics], "keywords": keywords, "method": "fallback"}
 
-def extract_topics(text: str, max_topics: int = 5, max_keywords: int = 10) -> dict:
+
+def extract_topics(
+    text: str,
+    segments: list = None,
+    max_topics: int = 5,
+    max_keywords: int = 15
+) -> dict:
+    """
+    Full pipeline:
+      1. KeyBERT extracts candidate phrases
+      2. Structural filter removes fragments/noise
+      3. OpenAI summarizes the debate
+      4. Semantic reranking keeps only phrases relevant to the actual debate
+      5. Returns clean topics + source segments for frontend hover
+    """
     text = _clean_text(text)
     if not text:
         return {"main_topics": [], "keywords": [], "method": "none"}
@@ -68,30 +183,51 @@ def extract_topics(text: str, max_topics: int = 5, max_keywords: int = 10) -> di
             print("  → Loading KeyBERT model...")
             _kw_model = KeyBERT(model="all-MiniLM-L6-v2")
 
-        vectorizer = CountVectorizer(
-            ngram_range=(1, 3),
-            stop_words="english",
-            min_df=1
-        )
-
-        raw_topics = _kw_model.extract_keywords(
+        # Step 1 - Extract candidates (larger pool before filtering)
+        raw = _kw_model.extract_keywords(
             text,
-            vectorizer=vectorizer,
+            vectorizer=CountVectorizer(ngram_range=(1, 3), stop_words="english", min_df=1),
             use_mmr=True,
-            diversity=0.6,
+            diversity=0.7,
             top_n=max_keywords
         )
+        print(f"  → {len(raw)} raw candidates extracted")
 
-        cleaned = _filter_topics(raw_topics)
-        keywords = [phrase for phrase, _ in cleaned]
+        # Step 2 - Remove structural garbage
+        filtered = _structural_filter(raw)
+        print(f"  → {len(filtered)} after structural filter")
+
+        # Step 3 - Summarize the debate (context anchor)
+        summary = _generate_summary(text)
+
+        # Step 4 - Drop topics unrelated to actual debate content
+        final = _semantic_rerank(filtered, summary) if summary else filtered
+        print(f"  → {len(final)} after semantic reranking")
+
+        keywords = [phrase for phrase, _ in final]
+
+        # Step 5 - Find which segment each topic came from (frontend hover)
+        sources = {}
+        if segments:
+            for phrase in keywords[:max_topics]:
+                for seg in segments:
+                    if phrase.lower() in seg.get("text", "").lower():
+                        sources[phrase] = {
+                            "text": seg.get("text", "").strip(),
+                            "start": seg.get("start", 0),
+                            "speaker": seg.get("speaker", "UNKNOWN")
+                        }
+                        break
 
         return {
             "main_topics": keywords[:max_topics],
             "keywords": keywords,
-            "scores": {phrase: round(score, 3) for phrase, score in cleaned},
-            "method": "keybert"
+            "scores": {phrase: round(score, 3) for phrase, score in final},
+            "summary": summary,
+            "sources": sources,
+            "method": "keybert+semantic"
         }
 
     except Exception as e:
-        print(f"  KeyBERT failed: {e}, falling back to frequency method")
+        print(f"  → KeyBERT failed: {e}, using fallback")
         return _fallback_topics(text, max_topics, max_keywords)
