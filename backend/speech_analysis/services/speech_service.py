@@ -143,7 +143,7 @@ def analyze_audio(audio_path, include_diarization=True):
     
     speakers = sorted(list(set([seg.get('speaker', 'SPEAKER_00') for seg in segments])))
     
-    print(f"\n✅ COMPLETE - {num_speakers} speakers, {len(transcript)} turns")
+    print(f"\nCOMPLETE - {num_speakers} speakers, {len(transcript)} turns")
     print("="*70 + "\n")
     
     return {

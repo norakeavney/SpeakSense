@@ -11,6 +11,7 @@ from speech_analysis.services.emotion_analysis import (
     fuse_text_and_audio_emotions  # Fusion
 )
 import librosa  
+from speech_analysis.services.topic_extraction import extract_topics
 
 
 def start_real_processing(job_id, audio_path):
@@ -174,21 +175,36 @@ def _process_job(job_id, audio_path):
             AnalysisJobManager.update_step(job_id, "emotion", AnalysisJobManager.STEP_DONE)
         
         # ========================================
-        # STEP 4: TOPICS (Fake for now)
+        # STEP 4: TOPICS (Baseline)
         # ========================================
-        print("\nSTEP 4/4: Topic Extraction (placeholder)")
+        print("\nSTEP 4/4: Topic Extraction (baseline)")
         AnalysisJobManager.update_step(job_id, "topics", AnalysisJobManager.STEP_PROCESSING)
-        time.sleep(2)
+
+        try:
+            # Build text input from transcript segments if present
+            transcript_segments = analysis_result.get("transcript", [])
+            if transcript_segments and isinstance(transcript_segments, list):
+                topic_text = " ".join(
+                    seg.get("text", "") for seg in transcript_segments if isinstance(seg, dict)
+                ).strip()
+            else:
+                topic_text = (analysis_result.get("text") or "").strip()
+
+            topics_result = extract_topics(topic_text)
+            AnalysisJobManager.update_result(job_id, "topics", topics_result)
+            AnalysisJobManager.update_step(job_id, "topics", AnalysisJobManager.STEP_DONE)
+            print(f"✓ Topic extraction complete. Topics: {len(topics_result.get('main_topics', []))}")
+
+        except Exception as e:
+            error_msg = f"Topic extraction failed: {str(e)}"
+            print(f"✗ {error_msg}")
+            AnalysisJobManager.update_result(job_id, "topics", {
+                "main_topics": [],
+                "keywords": [],
+                "error": error_msg
+            })
+            AnalysisJobManager.update_step(job_id, "topics", AnalysisJobManager.STEP_DONE)
         
-        topics_result = {
-            "main_topics": [],
-            "keywords": [],
-            "note": "Real implementation coming in Step B4"
-        }
-        
-        AnalysisJobManager.update_result(job_id, "topics", topics_result)
-        AnalysisJobManager.update_step(job_id, "topics", AnalysisJobManager.STEP_DONE)
-        print("Topic extraction complete.")
         
         # ========================================
         # MARK JOB AS COMPLETE

@@ -37,12 +37,12 @@ def get_emotion_classifier():
     if _emotion_classifier is None:
         try:
             logger.info("Loading DistilBERT emotion classifier...")
-            model_name = "cardiffnlp/twitter-roberta-base-emotion"
+            model_name = "SamLowe/roberta-base-go_emotions"
             _emotion_classifier = pipeline(
                 "text-classification",
                 model=model_name,
                 top_k=None,
-                device=-1  # Force CPU to avoid GPU issues
+                device=-1,  # Force CPU to avoid GPU issues
             )
             logger.info("✓ DistilBERT loaded successfully")
         except Exception as e:
