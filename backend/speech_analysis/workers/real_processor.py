@@ -12,7 +12,7 @@ from speech_analysis.services.emotion_analysis import (
 )
 import librosa  
 from speech_analysis.services.topic_extraction import extract_topics
-
+from speech_analysis.services.role_detection import detect_speaker_roles
 
 def start_real_processing(job_id, audio_path):
     """Start background processing for a job."""
@@ -64,7 +64,14 @@ def _process_job(job_id, audio_path):
             'segments': analysis_result.get('segments', [])
         })
         AnalysisJobManager.update_step(job_id, "transcription", AnalysisJobManager.STEP_DONE)
+
+        # ========================================
+        # ROLE DETECTION 
+        # ========================================
+        print("\nDetecting speaker roles...")
+        roles = detect_speaker_roles(analysis_result['segments'])
         
+
         # Store diarization
         if analysis_result.get('diarization_error'):
             print(f"⚠ Diarization failed: {analysis_result['diarization_error']}")
@@ -79,7 +86,8 @@ def _process_job(job_id, audio_path):
                 'status': 'completed',
                 'transcript': analysis_result['transcript'],
                 'num_speakers': analysis_result['num_speakers'],
-                'speakers': analysis_result['speakers']
+                'speakers': analysis_result['speakers'],
+                'roles': roles
             })
             AnalysisJobManager.update_step(job_id, "diarization", AnalysisJobManager.STEP_DONE)
             print(f"✓ Complete analysis done! {analysis_result['num_speakers']} speakers detected.")
