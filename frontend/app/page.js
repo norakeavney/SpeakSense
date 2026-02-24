@@ -1,9 +1,40 @@
-import AudioUpload from '@/components/AudioUpload';
+'use client';
 
-export default function Home() {
+import { useState } from 'react';
+import AudioUpload from '../components/AudioUpload';
+import AnalysisProgress from '../components/AnalysisProgress';
+import Dashboard from '../components/Dashboard';
+
+export default function HomePage() {
+  const [stage, setStage] = useState("upload");
+  const [jobId, setJobId] = useState(null);
+  const [analysisData, setAnalysisData] = useState(null);
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12">
-      <AudioUpload />
+    <main>
+      {stage === "upload" && (
+        <AudioUpload
+          onUploadComplete={(response) => {
+            setJobId(response.job_id);
+            setStage("processing");
+          }}
+        />
+      )}
+
+      {stage === "processing" && (
+        <AnalysisProgress
+          jobId={jobId}
+          onComplete={(data) => {
+            console.log("ANALYSIS COMPLETE:", data);
+            setAnalysisData(data);
+            setStage("dashboard");
+          }}
+        />
+      )}
+
+      {stage === "dashboard" && (
+        <Dashboard data={analysisData} />
+      )}
     </main>
   );
 }

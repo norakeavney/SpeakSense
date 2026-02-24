@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { uploadAudio } from '@/lib/api';
 import AnalysisProgress from './AnalysisProgress';
 
-export default function AudioUpload() {
+export default function AudioUpload({ onUploadComplete }) {
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -36,6 +36,10 @@ export default function AudioUpload() {
       const response = await uploadAudio(file, title);
       setResult(response);
       
+      if (onUploadComplete) {
+        onUploadComplete(response);
+      }
+
       // Reset form
       setFile(null);
       setTitle('');
@@ -52,7 +56,7 @@ export default function AudioUpload() {
     <div className="max-w-2xl mx-auto p-8">
       <div className="bg-white rounded-lg shadow-lg p-8">
         <h1 className="text-3xl font-bold mb-2 text-gray-800">
-          🎤 SpeakSense Upload
+          SpeakSense Upload
         </h1>
         <p className="text-gray-600 mb-6">
           Upload an audio file for speech analysis
@@ -129,7 +133,7 @@ export default function AudioUpload() {
         {result && (
           <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
             <h3 className="text-lg font-semibold text-green-800 mb-2">
-              ✅ Upload Successful!
+              Upload Successful!
             </h3>
             <div className="text-sm text-green-700 space-y-1">
               <p><strong>Filename:</strong> {result.filename}</p>
@@ -138,16 +142,12 @@ export default function AudioUpload() {
           </div>
         )}
 
-        {/* Analysis Progress - Show if we have a job_id */}
-        {result?.job_id && (
-          <AnalysisProgress jobId={result.job_id} />
-        )}
 
         {/* Error Message */}
         {error && (
           <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
             <h3 className="text-lg font-semibold text-red-800 mb-2">
-              ❌ Upload Failed
+              Upload Failed
             </h3>
             <p className="text-sm text-red-700">{error}</p>
           </div>
