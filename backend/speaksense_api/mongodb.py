@@ -31,10 +31,10 @@ class MongoDBConnection:
                 # Test the connection
                 self._client.admin.command('ping')
                 self._db = self._client[settings.MONGODB_DB_NAME]
-                print(f"✅ Connected to MongoDB: {settings.MONGODB_DB_NAME}")
+                print(f"Connected to MongoDB: {settings.MONGODB_DB_NAME}")
                 return True
             except ConnectionFailure as e:
-                print(f"❌ MongoDB connection failed: {e}")
+                print(f"MongoDB connection failed: {e}")
                 return False
         return True
     

@@ -13,6 +13,10 @@ from speech_analysis.services.emotion_analysis import (
 import librosa  
 from speech_analysis.services.topic_extraction import extract_topics
 from speech_analysis.services.role_detection import detect_speaker_roles
+from speech_analysis.services.political_analysis import (
+    build_speaker_texts_from_diarized_transcript,
+    analyze_speaker_politics,
+)
 
 def start_real_processing(job_id, audio_path):
     """Start background processing for a job."""
@@ -102,7 +106,7 @@ def _process_job(job_id, audio_path):
         try:
             audio, sr = librosa.load(audio_path, sr=None)
             audio_duration = len(audio) / sr
-            print(f"✓ Audio duration: {audio_duration:.2f} seconds")
+            print(f"Audio duration: {audio_duration:.2f} seconds")
         except Exception as e:
             print(f"Could not load audio for duration: {e}")
             audio_duration = 0
@@ -115,7 +119,7 @@ def _process_job(job_id, audio_path):
 
         # DEBUG: Print what we got
         print("\n" + "="*60)
-        print("📊 SPEAKER METRICS RESULT:")
+        print("SPEAKER METRICS RESULT:")
         print("="*60)
         import json
         print(json.dumps(speaker_metrics_result, indent=2))
@@ -123,7 +127,7 @@ def _process_job(job_id, audio_path):
         
         AnalysisJobManager.update_result(job_id, "speaker_metrics", speaker_metrics_result)
         AnalysisJobManager.update_step(job_id, "speaker_metrics", AnalysisJobManager.STEP_DONE)
-        print("✓ Speaker metrics complete.")
+        print("Speaker metrics complete.")
         
         # ========================================
         # STEP 3: EMOTION ANALYSIS (Text + Audio Fusion)
@@ -213,7 +217,39 @@ def _process_job(job_id, audio_path):
             })
             AnalysisJobManager.update_step(job_id, "topics", AnalysisJobManager.STEP_DONE)
         
-        
+        # ========================================
+        # STEP 5: POLITICAL ALIGNMENT
+        # ========================================
+        print("\nSTEP 5/5: Political Alignment")
+        AnalysisJobManager.update_step(job_id, "political_alignment", AnalysisJobManager.STEP_PROCESSING)
+
+        try:
+            transcript_segments = analysis_result.get("transcript", [])
+
+            speaker_texts = build_speaker_texts_from_diarized_transcript(transcript_segments)
+
+            political_alignment = analyze_speaker_politics(
+                speaker_texts,
+                max_chars=3000  # prevent huge API payloads
+            )
+
+            AnalysisJobManager.update_result(job_id, "political_alignment", political_alignment)
+            AnalysisJobManager.update_step(job_id, "political_alignment", AnalysisJobManager.STEP_DONE)
+
+            print("✓ Political alignment complete.")
+            print(f"  Speakers analyzed: {len(political_alignment.get('speakers', {}))}")
+
+        except Exception as e:
+            error_msg = f"Political alignment failed: {str(e)}"
+            print(f"✗ {error_msg}")
+            import traceback
+            traceback.print_exc()
+
+            AnalysisJobManager.update_result(job_id, "political_alignment", {
+                "error": error_msg
+            })
+            AnalysisJobManager.update_step(job_id, "political_alignment", AnalysisJobManager.STEP_FAILED)
+
         # ========================================
         # MARK JOB AS COMPLETE
         # ========================================
