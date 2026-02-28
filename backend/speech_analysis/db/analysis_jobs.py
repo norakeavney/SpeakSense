@@ -56,7 +56,8 @@ class AnalysisJobManager:
                 'diarization': AnalysisJobManager.STEP_PENDING,
                 'speaker_metrics': AnalysisJobManager.STEP_PENDING,
                 'emotion': AnalysisJobManager.STEP_PENDING,
-                'topics': AnalysisJobManager.STEP_PENDING
+                'topics': AnalysisJobManager.STEP_PENDING,
+                'political_analysis': AnalysisJobManager.STEP_PENDING
             },
             'results': {},
             'speaker_confirmations': {},  # Store user-confirmed speaker names

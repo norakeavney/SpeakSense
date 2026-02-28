@@ -25,7 +25,7 @@ export default function AnalysisProgress({ jobId, onComplete }) {
           clearInterval(interval);
 
           if (onComplete) {
-            onComplete(data); // 🚀 send full analysis results upward
+            onComplete(data); // send full analysis results upward
           }
         }
 

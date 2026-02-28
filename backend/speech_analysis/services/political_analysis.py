@@ -182,3 +182,29 @@ def analyse_speaker_politics(
         }
 
     return results
+
+def build_speaker_texts_from_diarized_transcript(
+    diarized_transcript: List[Dict[str, Any]],
+    speaker_field: str = "speaker",
+    text_field: str = "text",
+) -> Dict[str, str]:
+    """
+    Combines transcript turns per speaker.
+    Input example:
+      {"speaker": "SPEAKER_00", "start": 0.0, "end": 1.2, "text": "Hello"}
+    Output:
+      {"SPEAKER_00": "Hello ... combined"}
+    """
+
+    out: Dict[str, List[str]] = {}
+
+    for turn in diarized_transcript or []:
+        sid = str(turn.get(speaker_field, "")).strip()
+        t = str(turn.get(text_field, "")).strip()
+
+        if not sid or not t:
+            continue
+
+        out.setdefault(sid, []).append(t)
+
+    return {sid: " ".join(chunks) for sid, chunks in out.items()}
