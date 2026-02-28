@@ -185,7 +185,7 @@ def _calculate_comparative_metrics(speaker_data):
     # TODO: Add turn-taking frequency analysis
     # - Calculate speaker switches per minute
     # - Identify who controls conversation flow
-    # - Analyze turn-taking patterns (who follows whom)
+    # - analyse turn-taking patterns (who follows whom)
     
     # TODO: Add dominance ratio calculation
     # - Calculate speaking time ratio
@@ -193,7 +193,7 @@ def _calculate_comparative_metrics(speaker_data):
     
     # TODO: Add loudness/tone comparison (requires audio feature extraction)
     # - Compare average loudness between speakers
-    # - Analyze pitch/tone variations
+    # - analyse pitch/tone variations
     # - Detect aggressive vs calm speaking patterns
     
     return {
@@ -272,8 +272,8 @@ def _generate_placeholder_metrics(transcription_result):
 #     """Detect when speakers interrupt each other"""
 #     pass
 
-# TODO: def analyze_pauses(transcript, audio_path):
-#     """Analyze silence/pause patterns between turns"""
+# TODO: def analyse_pauses(transcript, audio_path):
+#     """analyse silence/pause patterns between turns"""
 #     pass
 
 # TODO: def calculate_sentiment_per_speaker(speaker_turns):
@@ -284,7 +284,7 @@ def _generate_placeholder_metrics(transcription_result):
 #     """Detect emotions using DistilBERT model"""
 #     pass
 
-# TODO: def analyze_questions_vs_statements(transcript):
+# TODO: def analyse_questions_vs_statements(transcript):
 #     """Classify segments as questions or statements"""
 #     pass
 
@@ -300,6 +300,6 @@ def _generate_placeholder_metrics(transcription_result):
 #     """Extract main topics discussed by each speaker using KeyBERT"""
 #     pass
 
-# TODO: def analyze_loudness_per_speaker(audio_path, transcript):
-#     """Analyze audio loudness and tone per speaker"""
+# TODO: def analyse_loudness_per_speaker(audio_path, transcript):
+#     """analyse audio loudness and tone per speaker"""
 #     pass

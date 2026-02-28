@@ -89,9 +89,9 @@ EMOTION_KEYWORDS = {
 }
 
 
-def analyze_emotions(transcript_data: List[Dict], audio_features: Dict = None) -> Dict[str, Any]:
+def analyse_emotions(transcript_data: List[Dict], audio_features: Dict = None) -> Dict[str, Any]:
     """
-    Analyze emotions from transcript using DistilBERT and optional audio features.
+    analyse emotions from transcript using DistilBERT and optional audio features.
     
     Args:
         transcript_data: List of transcript segments with 'text', 'start', 'end', and optionally 'speaker'
@@ -269,7 +269,7 @@ def _predict_emotion(text: str, classifier) -> Tuple[str, float]:
     Separated from context-aware correction for cleaner architecture.
     
     Args:
-        text: Text to analyze
+        text: Text to analyse
         classifier: HuggingFace pipeline for emotion classification
     
     Returns:
@@ -352,7 +352,7 @@ def _detect_emotion_from_text(text: str) -> Tuple[str, float]:
     Detect emotion from text using keyword matching and sentiment analysis.
     
     Args:
-        text: Text to analyze
+        text: Text to analyse
     
     Returns:
         Tuple of (emotion, confidence)
@@ -366,7 +366,7 @@ def _detect_emotion_from_text(text: str) -> Tuple[str, float]:
         if score > 0:
             emotion_scores[emotion] = score
     
-    # If no keywords found, analyze sentiment through basic heuristics
+    # If no keywords found, analyse sentiment through basic heuristics
     if not emotion_scores:
         # Check for punctuation and capitalization patterns
         if '!' in text or text.isupper():
@@ -463,9 +463,9 @@ def _calculate_emotional_asymmetry(speaker_emotions: Dict) -> Dict[str, Any]:
     }
 
 
-def analyze_speaker_emotional_state(speaker_metrics: Dict, audio_features: Dict = None) -> Dict[str, Any]:
+def analyse_speaker_emotional_state(speaker_metrics: Dict, audio_features: Dict = None) -> Dict[str, Any]:
     """
-    Analyze emotional patterns for individual speakers.
+    analyse emotional patterns for individual speakers.
     
     Args:
         speaker_metrics: Dict of speaker metrics (speaking time, WPM, etc.)
@@ -485,7 +485,7 @@ def analyze_speaker_emotional_state(speaker_metrics: Dict, audio_features: Dict 
             'engagement': 'moderate'
         }
         
-        # Analyze speaking patterns for emotional indicators
+        # analyse speaking patterns for emotional indicators
         wpm = metrics.get('words_per_minute', 120)
         
         # Fast speaking might indicate excitement or anxiety
@@ -588,9 +588,9 @@ def get_audio_emotion_model():
     return _audio_emotion_model, _audio_emotion_processor
 
 
-def analyze_audio_emotions(audio_path: str, transcript_data: List[Dict] = None) -> Dict[str, Any]:
+def analyse_audio_emotions(audio_path: str, transcript_data: List[Dict] = None) -> Dict[str, Any]:
     """
-    Analyze emotions from audio file using Wav2Vec2.
+    analyse emotions from audio file using Wav2Vec2.
     
     Args:
         audio_path: Path to audio file
@@ -647,7 +647,7 @@ def analyze_audio_emotions(audio_path: str, transcript_data: List[Dict] = None) 
         if waveform.shape[0] > 1:
             waveform = torch.mean(waveform, dim=0, keepdim=True)
         
-        # Analyze audio in chunks (30 second segments)
+        # analyse audio in chunks (30 second segments)
         chunk_duration = 30  # seconds
         chunk_samples = chunk_duration * sample_rate
         total_samples = waveform.shape[1]
@@ -666,7 +666,7 @@ def analyze_audio_emotions(audio_path: str, transcript_data: List[Dict] = None) 
             if chunk.shape[1] < sample_rate * 2:  # Less than 2 seconds
                 continue
             
-            # Analyze chunk
+            # analyse chunk
             emotion, confidence = _predict_emotion_from_audio(chunk.squeeze().numpy(), processor, model)
             
             # FIX 4: Weighted accumulation
@@ -698,7 +698,7 @@ def analyze_audio_emotions(audio_path: str, transcript_data: List[Dict] = None) 
             'audio_confidence': round(avg_confidence, 2),
             'avg_confidence': round(avg_confidence, 2),  # For fusion
             'model_used': 'wav2vec2',
-            'num_chunks_analyzed': len(timeline)
+            'num_chunks_analysed': len(timeline)
         }
         
         logger.info(f"Audio emotion analysis complete: {overall_sentiment}, {len(timeline)} chunks")

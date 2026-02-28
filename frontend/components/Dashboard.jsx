@@ -117,7 +117,7 @@ export default function Dashboard({ data }) {
   const fileName =
     data.filename ||
     data.job_id ||
-    'Analyzed Audio';
+    'analysed Audio';
 
   /* =========================
      RENDER

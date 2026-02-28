@@ -3,7 +3,7 @@ import './globals.css';
 export const metadata = {
   title: 'SpeakSense - Speech Analysis Platform',
   description:
-    'Upload and analyze audio files with AI-powered transcription, speaker identification, and emotion detection',
+    'Upload and analyse audio files with AI-powered transcription, speaker identification, and emotion detection',
 };
 
 export default function RootLayout({ children }) {

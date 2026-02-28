@@ -61,7 +61,7 @@ def print_workflow():
 ┌─────────────────────────────────────────────────────────────────────┐
 │  STEP 4: AI Analysis & Suggestion Generation                        │
 │  ┌────────────────────────────────────────────────────────────┐    │
-│  │  🧠 Analyze Speaking Patterns                              │    │
+│  │  🧠 analyse Speaking Patterns                              │    │
 │  │     - Count turns per speaker                              │    │
 │  │     - Calculate speaking time                              │    │
 │  │     - Average turn duration                                │    │
@@ -78,7 +78,7 @@ def print_workflow():
 │  │  📝 Extract Context from Transcript                        │    │
 │  │     - Look for "My name is..."                             │    │
 │  │     - Identify job titles                                  │    │
-│  │     - Analyze self-references                              │    │
+│  │     - analyse self-references                              │    │
 │  └────────────────────────────────────────────────────────────┘    │
 │                            │                                         │
 │  ┌────────────────────────────────────────────────────────────┐    │

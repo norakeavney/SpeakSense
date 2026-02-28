@@ -12,7 +12,7 @@ This feature adds intelligent speaker diarization (identifying "who spoke when")
 ## 🌟 Key Features
 
 ### AI-Powered Suggestions
-- Analyzes speaking patterns (duration, frequency, turn-taking)
+- analyses speaking patterns (duration, frequency, turn-taking)
 - Detects common roles (interviewer/interviewee, host/guest, moderator)
 - Extracts context clues from transcription
 - Provides confidence scores and reasoning
@@ -342,7 +342,7 @@ To extend the AI suggestion algorithm:
 
 1. Edit `services/speaker_diarization.py`
 2. Update `_infer_speaker_role()` method
-3. Add new heuristics to `_analyze_transcription_context()`
+3. Add new heuristics to `_analyse_transcription_context()`
 4. Test with diverse audio samples
 5. Submit PR with examples
 
