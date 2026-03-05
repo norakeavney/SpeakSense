@@ -12,6 +12,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import SpeakerAnalysis from './SpeakerAnalysis';
 
 const COLORS = [
   '#2563eb',
@@ -290,6 +291,11 @@ export default function Dashboard({ data }) {
               No political alignment data available.
             </p>
           )}
+        </div>
+
+        {/* ENHANCED SPEAKER ANALYSIS */}
+        <div className="col-span-12">
+          <SpeakerAnalysis results={results} />
         </div>
       </div>
     </div>

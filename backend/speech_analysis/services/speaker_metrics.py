@@ -6,6 +6,18 @@ import re
 import numpy as np
 from collections import Counter
 
+try:
+    from textblob import TextBlob
+    TEXTBLOB_AVAILABLE = True
+except ImportError:
+    TEXTBLOB_AVAILABLE = False
+    
+try:
+    from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+    VADER_AVAILABLE = True
+except ImportError:
+    VADER_AVAILABLE = False
+
 
 def calculate_speaker_metrics(transcription_result, diarization_result):
     """
@@ -268,32 +280,381 @@ def _generate_placeholder_metrics(transcription_result):
 # TODO: FUTURE METRIC FUNCTIONS TO IMPLEMENT
 # ============================================================
 
-# TODO: def detect_interruptions(transcript):
-#     """Detect when speakers interrupt each other"""
-#     pass
+def analyse_questions_vs_statements(transcript):
+    """
+    Classify segments as questions or statements
+    
+    Args:
+        transcript: List of turn dictionaries with 'text' and 'speaker' keys
+    
+    Returns:
+        Dict with question/statement analysis per speaker
+    """
+    speakers_analysis = {}
+    
+    # Question patterns (more comprehensive)
+    question_patterns = [
+        r'\?',  # Direct question mark
+        r'^(what|when|where|why|how|who|which|whose|whom)\b',  # Wh- questions
+        r'^(is|are|was|were|do|does|did|can|could|will|would|should|shall|may|might|have|has|had)\b',  # Yes/no questions
+        r'^(don\'t you|wouldn\'t you|isn\'t it|aren\'t you|didn\'t you)\b',  # Tag questions
+        r'\b(right|correct|true)\?$',  # Confirmation questions
+    ]
+    
+    for turn in transcript:
+        speaker = turn.get('speaker', 'unknown')
+        text = turn.get('text', '').strip().lower()
+        
+        if not text:
+            continue
+            
+        if speaker not in speakers_analysis:
+            speakers_analysis[speaker] = {
+                'questions': 0,
+                'statements': 0,
+                'question_examples': [],
+                'statement_examples': []
+            }
+        
+        # Check if it's a question
+        is_question = False
+        for pattern in question_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                is_question = True
+                break
+        
+        if is_question:
+            speakers_analysis[speaker]['questions'] += 1
+            if len(speakers_analysis[speaker]['question_examples']) < 3:
+                speakers_analysis[speaker]['question_examples'].append(turn.get('text', '')[:100])
+        else:
+            speakers_analysis[speaker]['statements'] += 1
+            if len(speakers_analysis[speaker]['statement_examples']) < 3:
+                speakers_analysis[speaker]['statement_examples'].append(turn.get('text', '')[:100])
+    
+    # Calculate ratios
+    for speaker in speakers_analysis:
+        total = speakers_analysis[speaker]['questions'] + speakers_analysis[speaker]['statements']
+        if total > 0:
+            speakers_analysis[speaker]['question_ratio'] = round(
+                speakers_analysis[speaker]['questions'] / total, 3
+            )
+            speakers_analysis[speaker]['likely_role'] = (
+                'interviewer' if speakers_analysis[speaker]['question_ratio'] > 0.3 
+                else 'interviewee'
+            )
+    
+    return speakers_analysis
+
+
+def detect_agreement_disagreement(transcript):
+    """
+    Detect agreement and disagreement patterns
+    
+    Args:
+        transcript: List of turn dictionaries with 'text' and 'speaker' keys
+    
+    Returns:
+        Dict with agreement/disagreement analysis per speaker
+    """
+    speakers_analysis = {}
+    
+    agreement_patterns = [
+        r'\b(yes|yeah|yep|absolutely|exactly|right|correct|true|agreed?|definitely)\b',
+        r'\b(i agree|that\'s right|you\'re right|exactly right|spot on)\b',
+        r'\b(good point|makes sense|i think so too|no doubt)\b'
+    ]
+    
+    disagreement_patterns = [
+        r'\b(no|nope|not really|i disagree|actually)\b',
+        r'\b(that\'s wrong|i don\'t think|i doubt|but)\b',
+        r'\b(however|on the contrary|i\'d argue|not necessarily)\b'
+    ]
+    
+    for turn in transcript:
+        speaker = turn.get('speaker', 'unknown')
+        text = turn.get('text', '').lower()
+        
+        if not text:
+            continue
+            
+        if speaker not in speakers_analysis:
+            speakers_analysis[speaker] = {
+                'agreements': 0,
+                'disagreements': 0,
+                'agreement_examples': [],
+                'disagreement_examples': []
+            }
+        
+        # Check for agreement
+        for pattern in agreement_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                speakers_analysis[speaker]['agreements'] += 1
+                if len(speakers_analysis[speaker]['agreement_examples']) < 3:
+                    speakers_analysis[speaker]['agreement_examples'].append(turn.get('text', '')[:100])
+                break
+        
+        # Check for disagreement
+        for pattern in disagreement_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                speakers_analysis[speaker]['disagreements'] += 1
+                if len(speakers_analysis[speaker]['disagreement_examples']) < 3:
+                    speakers_analysis[speaker]['disagreement_examples'].append(turn.get('text', '')[:100])
+                break
+    
+    # Calculate confrontation scores
+    for speaker in speakers_analysis:
+        total = speakers_analysis[speaker]['agreements'] + speakers_analysis[speaker]['disagreements']
+        if total > 0:
+            speakers_analysis[speaker]['confrontation_score'] = round(
+                speakers_analysis[speaker]['disagreements'] / total, 3
+            )
+            if speakers_analysis[speaker]['confrontation_score'] > 0.6:
+                speakers_analysis[speaker]['communication_style'] = 'confrontational'
+            elif speakers_analysis[speaker]['confrontation_score'] > 0.3:
+                speakers_analysis[speaker]['communication_style'] = 'questioning'
+            else:
+                speakers_analysis[speaker]['communication_style'] = 'agreeable'
+    
+    return speakers_analysis
+
+
+def calculate_sentiment_per_speaker(speaker_turns):
+    """
+    Calculate sentiment scores using VADER/TextBlob
+    
+    Args:
+        speaker_turns: List of turn dictionaries for a single speaker
+    
+    Returns:
+        Dict with sentiment analysis results
+    """
+    if not speaker_turns:
+        return {}
+    
+    all_text = " ".join([turn.get('text', '') for turn in speaker_turns])
+    
+    results = {
+        'total_turns': len(speaker_turns),
+        'sentiment_scores': []
+    }
+    
+    # Use VADER if available (better for short texts and social media)
+    if VADER_AVAILABLE:
+        analyzer = SentimentIntensityAnalyzer()
+        
+        for turn in speaker_turns:
+            text = turn.get('text', '')
+            if text.strip():
+                scores = analyzer.polarity_scores(text)
+                results['sentiment_scores'].append({
+                    'text': text[:100],
+                    'positive': scores['pos'],
+                    'negative': scores['neg'],
+                    'neutral': scores['neu'],
+                    'compound': scores['compound']
+                })
+        
+        # Overall sentiment
+        overall = analyzer.polarity_scores(all_text)
+        results['overall_sentiment'] = {
+            'positive': round(overall['pos'], 3),
+            'negative': round(overall['neg'], 3),
+            'neutral': round(overall['neu'], 3),
+            'compound': round(overall['compound'], 3)
+        }
+        
+        # Interpret compound score
+        if overall['compound'] >= 0.05:
+            results['sentiment_label'] = 'positive'
+        elif overall['compound'] <= -0.05:
+            results['sentiment_label'] = 'negative'
+        else:
+            results['sentiment_label'] = 'neutral'
+            
+    # Fallback to TextBlob if VADER not available
+    elif TEXTBLOB_AVAILABLE:
+        blob = TextBlob(all_text)
+        polarity = blob.sentiment.polarity
+        subjectivity = blob.sentiment.subjectivity
+        
+        results['overall_sentiment'] = {
+            'polarity': round(polarity, 3),  # -1 (negative) to 1 (positive)
+            'subjectivity': round(subjectivity, 3)  # 0 (objective) to 1 (subjective)
+        }
+        
+        if polarity > 0.1:
+            results['sentiment_label'] = 'positive'
+        elif polarity < -0.1:
+            results['sentiment_label'] = 'negative'
+        else:
+            results['sentiment_label'] = 'neutral'
+    
+    else:
+        results['error'] = 'No sentiment analysis library available (install textblob or vaderSentiment)'
+    
+    return results
+
+
+def detect_leading_questions(transcript):
+    """
+    Identify biased or leading questions
+    
+    Args:
+        transcript: List of turn dictionaries with 'text' and 'speaker' keys
+    
+    Returns:
+        Dict with leading question analysis per speaker
+    """
+    speakers_analysis = {}
+    
+    # Patterns that suggest leading questions
+    leading_patterns = [
+        r'don\'t you think',
+        r'wouldn\'t you agree',
+        r'isn\'t it true that',
+        r'wouldn\'t you say',
+        r'don\'t you believe',
+        r'surely you must',
+        r'obviously',
+        r'clearly',
+        r'undoubtedly',
+        r'wouldn\'t it be fair to say',
+        r'isn\'t it obvious',
+        r'you must admit',
+        r'certainly you',
+        r'of course you'
+    ]
+    
+    for turn in transcript:
+        speaker = turn.get('speaker', 'unknown')
+        text = turn.get('text', '').lower()
+        
+        if not text or '?' not in turn.get('text', ''):
+            continue  # Only analyze questions
+            
+        if speaker not in speakers_analysis:
+            speakers_analysis[speaker] = {
+                'total_questions': 0,
+                'leading_questions': 0,
+                'leading_examples': [],
+                'bias_indicators': []
+            }
+        
+        speakers_analysis[speaker]['total_questions'] += 1
+        
+        # Check for leading patterns
+        leading_found = False
+        for pattern in leading_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                leading_found = True
+                speakers_analysis[speaker]['bias_indicators'].append(pattern)
+                break
+        
+        if leading_found:
+            speakers_analysis[speaker]['leading_questions'] += 1
+            if len(speakers_analysis[speaker]['leading_examples']) < 3:
+                speakers_analysis[speaker]['leading_examples'].append(turn.get('text', ''))
+    
+    # Calculate bias score
+    for speaker in speakers_analysis:
+        total_q = speakers_analysis[speaker]['total_questions']
+        leading_q = speakers_analysis[speaker]['leading_questions']
+        
+        if total_q > 0:
+            speakers_analysis[speaker]['bias_score'] = round(leading_q / total_q, 3)
+            
+            if speakers_analysis[speaker]['bias_score'] > 0.3:
+                speakers_analysis[speaker]['bias_level'] = 'high'
+            elif speakers_analysis[speaker]['bias_score'] > 0.1:
+                speakers_analysis[speaker]['bias_level'] = 'moderate'
+            else:
+                speakers_analysis[speaker]['bias_level'] = 'low'
+    
+    return speakers_analysis
+
+
+def detect_interruptions(transcript):
+    """
+    Detect when speakers interrupt each other based on timestamps
+    
+    Args:
+        transcript: List of turn dictionaries with 'start', 'end', 'speaker', 'text'
+    
+    Returns:
+        Dict with interruption analysis
+    """
+    if len(transcript) < 2:
+        return {}
+    
+    interruptions = []
+    speakers_stats = {}
+    
+    for i in range(len(transcript) - 1):
+        current_turn = transcript[i]
+        next_turn = transcript[i + 1]
+        
+        current_speaker = current_turn.get('speaker')
+        next_speaker = next_turn.get('speaker')
+        
+        if current_speaker == next_speaker:
+            continue
+            
+        current_end = current_turn.get('end', 0)
+        next_start = next_turn.get('start', 0)
+        
+        # Initialize speaker stats
+        for speaker in [current_speaker, next_speaker]:
+            if speaker not in speakers_stats:
+                speakers_stats[speaker] = {
+                    'interruptions_made': 0,
+                    'interrupted_by_others': 0,
+                    'interruption_examples': []
+                }
+        
+        # Check for interruption (next speaker starts before current ends)
+        if next_start < current_end:
+            overlap_duration = current_end - next_start
+            
+            interruption = {
+                'interrupted_speaker': current_speaker,
+                'interrupting_speaker': next_speaker,
+                'overlap_duration': round(overlap_duration, 2),
+                'interrupted_text': current_turn.get('text', '')[:100],
+                'interrupting_text': next_turn.get('text', '')[:100]
+            }
+            
+            interruptions.append(interruption)
+            speakers_stats[next_speaker]['interruptions_made'] += 1
+            speakers_stats[current_speaker]['interrupted_by_others'] += 1
+            
+            # Store examples
+            if len(speakers_stats[next_speaker]['interruption_examples']) < 3:
+                speakers_stats[next_speaker]['interruption_examples'].append(
+                    f"Interrupted: '{current_turn.get('text', '')[:50]}...' with '{next_turn.get('text', '')[:50]}...'"
+                )
+    
+    # Calculate interruption rates
+    for speaker in speakers_stats:
+        total_interruptions = speakers_stats[speaker]['interruptions_made'] + speakers_stats[speaker]['interrupted_by_others']
+        if total_interruptions > 0:
+            speakers_stats[speaker]['dominance_score'] = round(
+                speakers_stats[speaker]['interruptions_made'] / total_interruptions, 3
+            )
+    
+    return {
+        'total_interruptions': len(interruptions),
+        'interruption_details': interruptions[:10],  # Limit to first 10
+        'speaker_stats': speakers_stats
+    }
+
 
 # TODO: def analyse_pauses(transcript, audio_path):
 #     """analyse silence/pause patterns between turns"""
 #     pass
 
-# TODO: def calculate_sentiment_per_speaker(speaker_turns):
-#     """Calculate sentiment scores using VADER/TextBlob"""
-#     pass
-
 # TODO: def detect_emotions_per_speaker(speaker_turns):
 #     """Detect emotions using DistilBERT model"""
-#     pass
-
-# TODO: def analyse_questions_vs_statements(transcript):
-#     """Classify segments as questions or statements"""
-#     pass
-
-# TODO: def detect_agreement_disagreement(transcript):
-#     """Detect agreement and disagreement patterns"""
-#     pass
-
-# TODO: def detect_leading_questions(transcript):
-#     """Identify biased or leading questions"""
 #     pass
 
 # TODO: def extract_topics_per_speaker(speaker_turns):

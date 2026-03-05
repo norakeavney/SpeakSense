@@ -38,6 +38,12 @@ pytorch-lightning>=2.0.0,<2.2.0
 einops>=0.7.0
 
 # -------------------------
+# Sentiment Analysis
+# -------------------------
+textblob>=0.17.0
+vaderSentiment>=3.3.0
+
+# -------------------------
 # OpenAI API
 # -------------------------
 openai>=1.0.0

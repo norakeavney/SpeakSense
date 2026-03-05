@@ -3,7 +3,14 @@ import time
 import os
 from speech_analysis.db.analysis_jobs import AnalysisJobManager
 from speech_analysis.services.speech_service import analyse_audio  # One simple import!
-from speech_analysis.services.speaker_metrics import calculate_speaker_metrics  # NEW!
+from speech_analysis.services.speaker_metrics import (
+    calculate_speaker_metrics, 
+    analyse_questions_vs_statements, 
+    detect_agreement_disagreement, 
+    calculate_sentiment_per_speaker, 
+    detect_leading_questions, 
+    detect_interruptions
+)
 from speech_analysis.services.emotion_analysis import (
     analyse_emotions, 
     generate_emotion_summary,
@@ -117,12 +124,42 @@ def _process_job(job_id, audio_path):
             diarization_result=analysis_result
         )
 
+        # Add enhanced speaker analysis
+        if analysis_result.get('transcript'):
+            transcript = analysis_result['transcript']
+            
+            print("  → Adding question/statement analysis...")
+            questions_analysis = analyse_questions_vs_statements(transcript)
+            speaker_metrics_result['questions_analysis'] = questions_analysis
+            
+            print("  → Adding agreement/disagreement detection...")
+            agreement_analysis = detect_agreement_disagreement(transcript)
+            speaker_metrics_result['agreement_analysis'] = agreement_analysis
+            
+            print("  → Adding leading questions detection...")
+            leading_questions = detect_leading_questions(transcript)
+            speaker_metrics_result['leading_questions'] = leading_questions
+            
+            print("  → Adding interruption detection...")
+            interruptions = detect_interruptions(transcript)
+            speaker_metrics_result['interruptions'] = interruptions
+            
+            print("  → Adding sentiment analysis per speaker...")
+            # Calculate sentiment for each speaker
+            speakers = analysis_result.get('speakers', [])
+            sentiment_analysis = {}
+            for speaker in speakers:
+                speaker_turns = [turn for turn in transcript if turn.get('speaker') == speaker]
+                if speaker_turns:
+                    sentiment_analysis[speaker] = calculate_sentiment_per_speaker(speaker_turns)
+            speaker_metrics_result['sentiment_analysis'] = sentiment_analysis
+
         # DEBUG: Print what we got
         print("\n" + "="*60)
         print("SPEAKER METRICS RESULT:")
         print("="*60)
         import json
-        print(json.dumps(speaker_metrics_result, indent=2))
+        print(json.dumps(speaker_metrics_result, indent=2, default=str))
         print("="*60 + "\n")
         
         AnalysisJobManager.update_result(job_id, "speaker_metrics", speaker_metrics_result)
