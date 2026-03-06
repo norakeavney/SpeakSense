@@ -111,7 +111,7 @@ export default function Dashboard({ data }) {
               <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
                 <div
                   className="h-3 bg-blue-600 transition-all duration-500"
-                  style={{ width: `${dominancePercent}%` }}
+                  style={{ width: `${dominancePercent || 0}%` }}
                 />
               </div>
               <p className="text-right text-sm mt-1 font-medium">
@@ -236,16 +236,12 @@ export default function Dashboard({ data }) {
                       <p className="text-sm text-gray-500 mb-2">
                         Economic Axis
                       </p>
-                      <div className="relative w-full bg-gray-200 h-3 rounded-full overflow-hidden">
-                        <div
-                          className={`absolute top-0 h-3 ${
+                      <div className="w-full bg-gray-200 h-3 rounded-full">
+                        <div 
+                          className={`h-3 rounded-full ${
                             econ?.axis >= 0 ? 'bg-red-500' : 'bg-green-500'
                           }`}
-                          style={{
-                            width: `${Math.abs(econ?.axis || 0) * 100}%`,
-                            left: econ?.axis < 0 ? '50%' : undefined,
-                            right: econ?.axis >= 0 ? '50%' : undefined,
-                          }}
+                          style={{ width: `${Math.abs(social?.axis || 0) * 50}%` }}
                         />
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
@@ -268,9 +264,8 @@ export default function Dashboard({ data }) {
                             social?.axis >= 0 ? 'bg-red-500' : 'bg-blue-500'
                           }`}
                           style={{
-                            width: `${Math.abs(social?.axis || 0) * 100}%`,
-                            left: social?.axis < 0 ? '50%' : undefined,
-                            right: social?.axis >= 0 ? '50%' : undefined,
+                            width: `${Math.min(Math.max(Math.abs(social?.axis || 0) * 100, 0), 100)}%`,
+                            [social?.axis < 0 ? 'left' : 'right']: '50%',
                           }}
                         />
                       </div>

@@ -52,24 +52,27 @@ def calculate_speaker_metrics(transcription_result, diarization_result):
     # Calculate comparative metrics
     comparative = _calculate_comparative_metrics(speaker_data)
     
-    # TODO: Add interruption detection metrics
-    # - Count overlapping speech segments
-    # - Identify who interrupts whom most frequently
-    # - Calculate interruption rate per speaker
+    # Add enhanced analysis features
+    questions_analysis = analyse_questions_vs_statements(transcript)
+    agreement_analysis = detect_agreement_disagreement(transcript)
+    leading_questions = detect_leading_questions(transcript)
+    interruptions = detect_interruptions(transcript)
     
-    # TODO: Add pause/silence analysis
-    # - Detect pauses between turns
-    # - Calculate average pause duration per speaker
-    # - Identify hesitation patterns
-    
-    # TODO: Add per-topic metrics (requires topic extraction first)
-    # - WPM per topic
-    # - Speaking time per topic
-    # - Dominant speaker per topic
+    # Add sentiment analysis per speaker
+    sentiment_analysis = {}
+    for speaker in speakers:
+        speaker_turns = [turn for turn in transcript if turn.get('speaker') == speaker]
+        if speaker_turns:
+            sentiment_analysis[speaker] = calculate_sentiment_per_speaker(speaker_turns)
     
     return {
         'speakers': speaker_data,
         'comparative': comparative,
+        'questions_analysis': questions_analysis,
+        'agreement_analysis': agreement_analysis,
+        'sentiment_analysis': sentiment_analysis,
+        'leading_questions': leading_questions,
+        'interruptions': interruptions,
         'summary': _generate_summary(speaker_data, comparative)
     }
 
