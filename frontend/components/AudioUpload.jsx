@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { uploadAudio } from '@/lib/api';
-import AnalysisProgress from './AnalysisProgress';
+import { Tab } from '@headlessui/react';
 
 export default function AudioUpload({ onUploadComplete }) {
   const [file, setFile] = useState(null);
@@ -10,6 +10,7 @@ export default function AudioUpload({ onUploadComplete }) {
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [url, setUrl] = useState('');
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -22,9 +23,9 @@ export default function AudioUpload({ onUploadComplete }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!file) {
-      setError('Please select an audio file');
+
+    if (!file && !url) {
+      setError('Please select a file or provide a YouTube URL');
       return;
     }
 
@@ -33,18 +34,20 @@ export default function AudioUpload({ onUploadComplete }) {
     setResult(null);
 
     try {
-      const response = await uploadAudio(file, title);
+      const response = file
+        ? await uploadAudio(file, title)
+        : await uploadAudio(url, title);
+
       setResult(response);
-      
+
       if (onUploadComplete) {
         onUploadComplete(response);
       }
 
-      // Reset form
       setFile(null);
+      setUrl('');
       setTitle('');
       e.target.reset();
-      
     } catch (err) {
       setError(err.message || 'Upload failed');
     } finally {
@@ -53,105 +56,182 @@ export default function AudioUpload({ onUploadComplete }) {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-8">
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold mb-2 text-gray-800">
+    <div className="max-w-xl mx-auto px-6 py-10">
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
+
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
           SpeakSense Upload
         </h1>
-        <p className="text-gray-600 mb-6">
-          Upload an audio file for speech analysis
+
+        <p className="text-gray-500 mb-8">
+          Upload audio/video or paste a YouTube link for analysis
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* File Input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Audio File *
-            </label>
-            <input
-              type="file"
-              accept="audio/*"
-              onChange={handleFileChange}
-              className="block w-full text-sm text-gray-500
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-full file:border-0
-                file:text-sm file:font-semibold
-                file:bg-blue-50 file:text-blue-700
-                hover:file:bg-blue-100
-                cursor-pointer"
-              disabled={uploading}
-            />
-            {file && (
-              <p className="mt-2 text-sm text-gray-600">
-                Selected: {file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)
-              </p>
-            )}
-          </div>
+        <Tab.Group>
 
-          {/* Title Input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Title (optional)
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="My Recording"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg
-                focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={uploading}
-            />
-          </div>
+          <Tab.List className="flex bg-gray-100 rounded-lg p-1 mb-6">
+            <Tab
+              className={({ selected }) =>
+                `flex-1 rounded-md py-2 text-sm font-medium transition
+                ${selected
+                  ? 'bg-white shadow text-gray-900'
+                  : 'text-gray-500 hover:text-gray-700'}`
+              }
+            >
+              Upload File
+            </Tab>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={!file || uploading}
-            className={`w-full py-3 px-4 rounded-lg font-semibold text-white
-              transition-colors duration-200
-              ${!file || uploading 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700'
-              }`}
-          >
-            {uploading ? (
-              <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Uploading...
-              </span>
-            ) : (
-              'Upload Audio'
-            )}
-          </button>
-        </form>
+            <Tab
+              className={({ selected }) =>
+                `flex-1 rounded-md py-2 text-sm font-medium transition
+                ${selected
+                  ? 'bg-white shadow text-gray-900'
+                  : 'text-gray-500 hover:text-gray-700'}`
+              }
+            >
+              YouTube URL
+            </Tab>
+          </Tab.List>
 
-        {/* Success Message */}
+          <Tab.Panels>
+
+            {/* FILE UPLOAD PANEL */}
+
+            <Tab.Panel>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+
+                <div>
+
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Audio or Video
+                  </label>
+
+                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:border-blue-400 transition bg-gray-50">
+
+                    <input
+                      type="file"
+                      accept="audio/*,video/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="file-upload"
+                      disabled={uploading}
+                    />
+
+                    <label htmlFor="file-upload" className="cursor-pointer">
+
+                      <div className="flex flex-col items-center gap-2">
+
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="w-10 h-10 text-gray-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6H16a4 4 0 010 8h-1"
+                          />
+                        </svg>
+
+                        <p className="text-gray-600 font-medium">
+                          Drag & drop your file here
+                        </p>
+
+                        <p className="text-xs text-gray-400">
+                          or click to browse
+                        </p>
+
+                      </div>
+
+                    </label>
+
+                  </div>
+
+                  {file && (
+                    <p className="mt-3 text-sm text-gray-600">
+                      {file.name} · {(file.size / (1024 * 1024)).toFixed(2)} MB
+                    </p>
+                  )}
+
+                </div>
+
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Optional title"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+
+                <button
+                  type="submit"
+                  disabled={!file || uploading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium transition disabled:opacity-50"
+                >
+                  {uploading ? 'Uploading...' : 'Analyze Audio'}
+                </button>
+
+              </form>
+
+            </Tab.Panel>
+
+
+            {/* YOUTUBE PANEL */}
+
+            <Tab.Panel>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://youtube.com/watch?v=..."
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Optional title"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+
+                <button
+                  type="submit"
+                  disabled={!url || uploading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium transition disabled:opacity-50"
+                >
+                  {uploading ? 'Processing...' : 'Analyze Video'}
+                </button>
+
+              </form>
+
+            </Tab.Panel>
+
+          </Tab.Panels>
+
+        </Tab.Group>
+
+
         {result && (
-          <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <h3 className="text-lg font-semibold text-green-800 mb-2">
-              Upload Successful!
-            </h3>
-            <div className="text-sm text-green-700 space-y-1">
-              <p><strong>Filename:</strong> {result.filename}</p>
-              <p><strong>Size:</strong> {result.size}</p>
-            </div>
+          <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800">
+            <strong>Upload successful</strong>
+            <div>{result.filename}</div>
           </div>
         )}
 
-
-        {/* Error Message */}
         {error && (
-          <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <h3 className="text-lg font-semibold text-red-800 mb-2">
-              Upload Failed
-            </h3>
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
+            {error}
           </div>
         )}
+
       </div>
     </div>
   );

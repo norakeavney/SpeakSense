@@ -2,7 +2,7 @@ import subprocess
 import os
 from pathlib import Path
 
-def normalize_audio(input_path):
+def normalise_audio(input_path):
     """
     Convert any audio/video input into
     16kHz mono WAV format for ML processing

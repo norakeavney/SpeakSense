@@ -15,7 +15,7 @@ from .serializers import AudioUploadSerializer
 from speech_analysis.db.mongodb import mongodb
 from speech_analysis.db.analysis_jobs import AnalysisJobManager
 from speech_analysis.utils.youtube import download_youtube_audio
-from speech_analysis.utils.media import normalize_audio
+from speech_analysis.utils.media import normalise_audio
 
 
 @api_view(['GET'])
@@ -151,7 +151,7 @@ def upload_audio(request):
     video_extensions = ['mp4', 'mov', 'mkv', 'webm']
 
     if file_extension.lower() in video_extensions:
-        file_path = Path(normalize_audios(file_path))
+        file_path = Path(normalise_audio(file_path))
         file_extension = 'wav'
 
     # Verify file exists and has size

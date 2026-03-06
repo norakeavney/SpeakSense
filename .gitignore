@@ -110,3 +110,9 @@ speechlab/cache/
 *.log
 
 bkup.txt
+
+# ----------------------------------------------------
+# Frontend Package Files
+# ----------------------------------------------------
+package-lock.json
+node_modules/
