@@ -4,8 +4,8 @@ API Views for SpeakSense
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from drf_spectacular.utils import extend_schema, OpenApiParameter
-from datetime import datetime
+from drf_spectacular.utils import extend_schema
+from datetime import datetime, timezone
 import os
 from pathlib import Path
 from django.conf import settings
@@ -14,6 +14,8 @@ from speech_analysis.workers.real_processor import start_real_processing
 from .serializers import AudioUploadSerializer
 from speech_analysis.db.mongodb import mongodb
 from speech_analysis.db.analysis_jobs import AnalysisJobManager
+from speech_analysis.utils.youtube import download_youtube_audio
+from speech_analysis.utils.media import normalize_audio
 
 
 @api_view(['GET'])
@@ -104,31 +106,61 @@ def upload_audio(request):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     # Get the validated file
-    audio_file = serializer.validated_data['audio_file']
-    title = serializer.validated_data.get('title', audio_file.name)
-    
-    # Generate unique filename
+    audio_file = serializer.validated_data.get('audio_file')
+    youtube_url = serializer.validated_data.get('youtube_url')
+    title = serializer.validated_data.get('title')
+
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    original_name = audio_file.name
-    file_extension = original_name.split('.')[-1]
-    unique_filename = f"{timestamp}_{original_name}"
-    
-    # Save file to disk
-    file_path = Path(settings.MEDIA_ROOT) / 'audio_uploads' / unique_filename
-    file_path.parent.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
-    
-    with open(file_path, 'wb+') as destination:
-        for chunk in audio_file.chunks():
-            destination.write(chunk)
-        destination.flush()  # Ensure file is written to disk
-        os.fsync(destination.fileno())  # Force OS to write to disk
-    
+
+    # If YouTube link
+    if youtube_url:
+        audio_upload_dir = Path(settings.MEDIA_ROOT) / 'audio_uploads'
+        audio_upload_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            downloaded_file = download_youtube_audio(
+                youtube_url,
+                str(audio_upload_dir)
+            )
+
+            file_path = Path(downloaded_file)
+            original_name = file_path.name
+            file_extension = ".wav"
+
+        except Exception as e:
+            return Response({
+                "error": "Failed to download YouTube audio",
+                "details": str(e)
+            }, status=400)
+
+    # If normal audio upload
+    else:
+        original_name = audio_file.name
+        file_extension = original_name.split('.')[-1]
+        unique_filename = f"{timestamp}_{original_name}"
+        file_path = Path(settings.MEDIA_ROOT) / 'audio_uploads' / unique_filename
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(file_path, 'wb+') as destination:
+            for chunk in audio_file.chunks():
+                destination.write(chunk)
+            destination.flush()  # Ensure file is written to disk
+            os.fsync(destination.fileno())  # Force OS to write to disk
+
+    # Convert video if necessary
+    video_extensions = ['mp4', 'mov', 'mkv', 'webm']
+
+    if file_extension.lower() in video_extensions:
+        file_path = Path(normalize_audios(file_path))
+        file_extension = 'wav'
+
     # Verify file exists and has size
     if not file_path.exists() or file_path.stat().st_size == 0:
         return Response({
             'error': 'File upload failed - file not saved properly'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+
     # Save metadata to MongoDB
     db = mongodb.connect()
     audio_collection = db['audio_files']
@@ -136,11 +168,11 @@ def upload_audio(request):
     audio_document = {
         'title': title,
         'original_filename': original_name,
-        'saved_filename': unique_filename,
+        'saved_filename': file_path.name,
         'file_path': str(file_path),
-        'file_size': audio_file.size,
+        'file_size': file_path.stat().st_size,
         'file_extension': file_extension,
-        'uploaded_at': datetime.utcnow(),
+        'uploaded_at': datetime.now(timezone.utc),
         'status': 'uploaded',  # uploaded, processing, completed, failed
         'transcript': None,
         'speakers': None,
@@ -148,6 +180,7 @@ def upload_audio(request):
     }
     
     result = audio_collection.insert_one(audio_document)
+
     
     # Create analysis job
     job_id = AnalysisJobManager.create_job(
@@ -164,8 +197,8 @@ def upload_audio(request):
         'file_id': str(result.inserted_id),
         'job_id': job_id,
         'status': 'queued',
-        'filename': unique_filename,
-        'size': f"{audio_file.size / (1024*1024):.2f} MB",
+        'filename': file_path.name,
+        'size': f"{file_path.stat().st_size / (1024*1024):.2f} MB",
         'title': title
     }, status=status.HTTP_201_CREATED)
 
