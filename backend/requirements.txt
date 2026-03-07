@@ -62,3 +62,12 @@ drf-spectacular>=0.27.0
 # -------------------------
 pymongo>=4.0.0
 motor>=3.0.0
+
+# -------------------------
+# YouTube & MP4 Processing
+# -------------------------
+
+moviepy==1.0.3          # For processing MP4 and other video formats
+yt-dlp==2023.03.04       # For downloading YouTube videos
+python-decouple==3.8     # For managing environment variables in Django
+ffmpeg-python==0.2.0    # Python bindings for FFmpeg

@@ -178,7 +178,14 @@ SPECTACULAR_SETTINGS = {
 # CORS SETTINGS
 # ============================================
 # For development - allow frontend to make requests
-CORS_ALLOWED_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Local development
+    "http://127.0.0.1:3000",  # Localhost alternative
+    "http://192.168.1.100:3000",  # Local network testing
+    "https://staging.your-frontend-domain.com",  # Staging environment
+    "https://your-frontend-domain.com",  # Production environment
+]
+
 CORS_ALLOW_CREDENTIALS = True
 
 # ============================================
