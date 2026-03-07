@@ -24,8 +24,8 @@ class MongoDBConnection:
             try:
                 self._client = MongoClient(
                     settings.MONGODB_URI,
-                    tls=True,
-                    tlsAllowInvalidCertificates=True,
+                    tls=False,  # Disable TLS for local development; set to True for production
+                    tlsAllowInvalidCertificates=False,  # Do not allow invalid certificates
                     serverSelectionTimeoutMS=10000
                 )
                 # Test the connection

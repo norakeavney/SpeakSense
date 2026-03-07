@@ -178,12 +178,7 @@ SPECTACULAR_SETTINGS = {
 # CORS SETTINGS
 # ============================================
 # For development - allow frontend to make requests
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',  # React default
-    'http://localhost:5173',  # Vite default
-    'http://localhost:8080',  # Vue default
-]
-
+CORS_ALLOWED_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 # ============================================

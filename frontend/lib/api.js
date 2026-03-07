@@ -11,9 +11,17 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/a
  * @param {string} title - Optional title for the audio
  * @returns {Promise<Object>} Upload response with file_id, filename, size, title
  */
-export const uploadAudio = async (file, title = '') => {
+export const uploadAudio = async (input, title = '') => {
   const formData = new FormData();
-  formData.append('audio_file', file);
+
+  // If input is a File object
+  if (input instanceof File) {
+    formData.append('audio_file', input);
+  } else {
+    // Otherwise assume it's a YouTube URL
+    formData.append('youtube_url', input);
+  }
+
   if (title) {
     formData.append('title', title);
   }
@@ -22,7 +30,6 @@ export const uploadAudio = async (file, title = '') => {
     const response = await fetch(`${API_BASE_URL}/upload/`, {
       method: 'POST',
       body: formData,
-      // Don't set Content-Type header - browser sets it automatically with boundary
     });
 
     if (!response.ok) {
@@ -31,6 +38,7 @@ export const uploadAudio = async (file, title = '') => {
     }
 
     return await response.json();
+
   } catch (error) {
     console.error('Upload error:', error);
     throw error;
