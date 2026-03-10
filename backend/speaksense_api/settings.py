@@ -207,7 +207,7 @@ SPECTACULAR_SETTINGS = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Local development
     "http://127.0.0.1:3000",  # Localhost alternative
-    "http://192.168.1.100:3000",  # Local network testing
+    "http://100.50.186.144:3000",  # EC2
     "https://staging.your-frontend-domain.com",  # Staging environment
     "https://your-frontend-domain.com",  # Production environment
 ]
@@ -220,3 +220,5 @@ CORS_ALLOW_CREDENTIALS = True
 # Use MongoDB Atlas URI from environment variables
 MONGODB_URI = config('MONGODB_URI', default='mongodb://localhost:27017/speaksense_db')
 MONGODB_DB_NAME = config('MONGODB_DB_NAME', default='speaksense_db')
+
+APPEND_SLASH = False
