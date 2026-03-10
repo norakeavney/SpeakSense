@@ -3,7 +3,7 @@
  * Handles all communication with Django REST API with JWT authentication
  */
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'http://100.50.186.144:8000/api';
 
 // ============================================
 // AUTHENTICATION HELPERS
