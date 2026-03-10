@@ -1,0 +1,27 @@
+version: '3.9'
+
+services:
+  backend:
+    build: ./backend
+    container_name: ss-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./.env
+    volumes:
+      - media_data:/app/media
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: ss-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  media_data:
