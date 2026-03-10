@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getAnalysisStatus } from '../lib/api';
 
 export default function AnalysisProgress({ jobId, onComplete }) {
   const [status, setStatus] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!jobId) return;
@@ -12,18 +14,11 @@ export default function AnalysisProgress({ jobId, onComplete }) {
 
     const pollStatus = async () => {
       try {
-        const response = await fetch(
-          `http://localhost:8000/api/analysis/${jobId}/status/`
-        );
-
-        if (!response.ok) throw new Error('Failed to fetch status');
-
-        const data = await response.json();
+        const data = await getAnalysisStatus(jobId);
         setStatus(data);
 
         if (data.status === 'done') {
           clearInterval(interval);
-
           if (onComplete) {
             onComplete(data); // send full analysis results upward
           }
@@ -31,10 +26,13 @@ export default function AnalysisProgress({ jobId, onComplete }) {
 
         if (data.status === 'failed') {
           clearInterval(interval);
+          setError(data.error || 'Analysis failed');
         }
 
       } catch (err) {
+        console.error('Status polling error:', err);
         clearInterval(interval);
+        setError('Failed to fetch analysis status');
       }
     };
 
@@ -44,6 +42,17 @@ export default function AnalysisProgress({ jobId, onComplete }) {
     return () => clearInterval(interval);
 
   }, [jobId, onComplete]);
+
+  if (error) {
+    return (
+      <div className="p-6 bg-white border rounded-lg shadow-sm">
+        <div className="text-center">
+          <div className="text-red-600 mb-2">❌ Analysis Failed</div>
+          <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!status) {
     return (

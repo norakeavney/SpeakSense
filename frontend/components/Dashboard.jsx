@@ -23,11 +23,21 @@ const COLORS = [
   '#0ea5e9',
 ];
 
-export default function Dashboard({ data }) {
+export default function Dashboard({ data, onStartNew }) {
   if (!data || !data.results) {
     return (
       <div className="p-10 text-center text-gray-500">
         No analysis data available.
+        {onStartNew && (
+          <div className="mt-4">
+            <button
+              onClick={onStartNew}
+              className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
+            >
+              Start New Analysis
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -104,19 +114,29 @@ export default function Dashboard({ data }) {
                 Bias Index — Speaking Time Dominance
               </p>
             </div>
-            <div className="ml-auto w-64">
-              <p className="text-sm text-gray-500 mb-2 text-right">
-                Dominance Level
-              </p>
-              <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
-                <div
-                  className="h-3 bg-blue-600 transition-all duration-500"
-                  style={{ width: `${dominancePercent || 0}%` }}
-                />
+            <div className="ml-auto flex items-center space-x-4">
+              {onStartNew && (
+                <button
+                  onClick={onStartNew}
+                  className="px-4 py-2 bg-black text-white text-sm rounded-lg hover:bg-gray-800"
+                >
+                  Start New Analysis
+                </button>
+              )}
+              <div className="w-64">
+                <p className="text-sm text-gray-500 mb-2 text-right">
+                  Dominance Level
+                </p>
+                <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
+                  <div
+                    className="h-3 bg-blue-600 transition-all duration-500"
+                    style={{ width: `${dominancePercent || 0}%` }}
+                  />
+                </div>
+                <p className="text-right text-sm mt-1 font-medium">
+                  {dominancePercent}%
+                </p>
               </div>
-              <p className="text-right text-sm mt-1 font-medium">
-                {dominancePercent}%
-              </p>
             </div>
           </div>
         </div>
