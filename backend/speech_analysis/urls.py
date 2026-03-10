@@ -18,4 +18,10 @@ urlpatterns = [
     # Speaker identification endpoints
     path('analysis/<str:job_id>/speakers/suggestions/', views.get_speaker_suggestions, name='get_speaker_suggestions'),
     path('analysis/<str:job_id>/speakers/confirm/', views.confirm_speakers, name='confirm_speakers'),
+    
+    # User-specific endpoints
+    path('user/reports/', views.user_reports, name='user_reports'),
+    path('user/reports/<str:job_id>/', views.user_report_detail, name='user_report_detail'),
+    path('user/reports/<str:job_id>/delete/', views.delete_user_report, name='delete_user_report'),
+    path('user/audio/', views.user_audio_files, name='user_audio_files'),
 ]

@@ -1,7 +1,8 @@
 """
 API Views for SpeakSense
 """
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from drf_spectacular.utils import extend_schema
@@ -16,9 +17,11 @@ from speech_analysis.db.mongodb import mongodb
 from speech_analysis.db.analysis_jobs import AnalysisJobManager
 from speech_analysis.utils.youtube import download_youtube_audio
 from speech_analysis.utils.media import normalise_audio
+from bson import ObjectId
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def health_check(request):
     """
     Health check endpoint to verify API and database connectivity
@@ -43,6 +46,7 @@ def health_check(request):
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def api_info(request):
     """
     API information endpoint
@@ -60,6 +64,7 @@ def api_info(request):
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def mongodb_test(request):
     """Test MongoDB connection"""
     try:
@@ -89,11 +94,13 @@ def mongodb_test(request):
 )
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def upload_audio(request):
     """
     Upload audio file endpoint
     
     Accepts audio files and saves them for processing
+    Requires authentication - links files to user account
     """
     
     # Validate the uploaded file
@@ -166,6 +173,7 @@ def upload_audio(request):
     audio_collection = db['audio_files']
     
     audio_document = {
+        'user_id': request.user.id,  # Link to authenticated user
         'title': title,
         'original_filename': original_name,
         'saved_filename': file_path.name,
@@ -185,7 +193,8 @@ def upload_audio(request):
     # Create analysis job
     job_id = AnalysisJobManager.create_job(
         audio_id=str(result.inserted_id),
-        audio_path=str(file_path)
+        audio_path=str(file_path),
+        user_id=request.user.id  # Pass user ID to job
     )
     
     # Start background processing
@@ -204,6 +213,7 @@ def upload_audio(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def analysis_status(request, job_id):
     """
     Get analysis job status and results
@@ -223,6 +233,13 @@ def analysis_status(request, job_id):
                 'error': 'Job not found',
                 'job_id': job_id
             }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if job belongs to authenticated user
+        if job.get('user_id') != request.user.id:
+            return Response({
+                'error': 'Access denied - not your job',
+                'job_id': job_id
+            }, status=status.HTTP_403_FORBIDDEN)
         
         # Return job status and results
         return Response({
@@ -244,6 +261,7 @@ def analysis_status(request, job_id):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def confirm_speakers(request, job_id):
     """
     Confirm speaker identities with user-provided names
@@ -271,6 +289,13 @@ def confirm_speakers(request, job_id):
                 'error': 'Job not found',
                 'job_id': job_id
             }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if job belongs to authenticated user
+        if job.get('user_id') != request.user.id:
+            return Response({
+                'error': 'Access denied - not your job',
+                'job_id': job_id
+            }, status=status.HTTP_403_FORBIDDEN)
         
         # Get speaker names from request
         speaker_names = request.data.get('speakers', {})
@@ -355,5 +380,205 @@ def get_speaker_suggestions(request, job_id):
     except Exception as e:
         return Response({
             'error': 'Failed to fetch speaker suggestions',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ============================================
+# USER-SPECIFIC ENDPOINTS
+# ============================================
+
+@extend_schema(
+    responses={200: dict},
+    description="Get all analysis reports for the authenticated user"
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_reports(request):
+    """
+    Get all analysis jobs/reports for the authenticated user
+    """
+    try:
+        db = mongodb.connect()
+        jobs_collection = db['analysis_jobs']
+        
+        # Get all jobs for this user
+        user_jobs = list(jobs_collection.find(
+            {'user_id': request.user.id},
+            {'_id': 0}
+        ).sort('created_at', -1))
+        
+        # Also get associated audio file info
+        audio_collection = db['audio_files']
+        
+        # Enrich jobs with audio file details
+        for job in user_jobs:
+            try:
+                audio_info = audio_collection.find_one(
+                    {'_id': ObjectId(job['audio_id'])},
+                    {'title': 1, 'original_filename': 1, 'file_size': 1, 'uploaded_at': 1}
+                )
+                if audio_info:
+                    job['audio_info'] = {
+                        'title': audio_info.get('title', 'Untitled'),
+                        'filename': audio_info.get('original_filename', ''),
+                        'size': audio_info.get('file_size', 0),
+                        'uploaded_at': audio_info.get('uploaded_at')
+                    }
+            except Exception:
+                # Handle invalid ObjectId gracefully
+                job['audio_info'] = {'title': 'Unknown', 'filename': '', 'size': 0}
+        
+        return Response({
+            'reports': user_jobs,
+            'total_count': len(user_jobs)
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            'error': 'Failed to fetch user reports',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(
+    responses={200: dict, 404: dict},
+    description="Get a specific analysis report for the authenticated user"
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_report_detail(request, job_id):
+    """
+    Get detailed information about a specific report/job
+    """
+    try:
+        # Fetch job from MongoDB
+        job = AnalysisJobManager.get_job(job_id)
+        
+        if not job:
+            return Response({
+                'error': 'Report not found',
+                'job_id': job_id
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if job belongs to authenticated user
+        if job.get('user_id') != request.user.id:
+            return Response({
+                'error': 'Access denied - not your report',
+                'job_id': job_id
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get associated audio file info
+        db = mongodb.connect()
+        audio_collection = db['audio_files']
+        try:
+            audio_info = audio_collection.find_one(
+                {'_id': ObjectId(job['audio_id'])},
+                {'_id': 0}
+            )
+        except Exception:
+            audio_info = None
+        
+        return Response({
+            'report': job,
+            'audio_file': audio_info
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            'error': 'Failed to fetch report details',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(
+    responses={200: dict, 404: dict},
+    description="Delete a specific analysis report for the authenticated user"
+)
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_user_report(request, job_id):
+    """
+    Delete a user's analysis report and associated audio file
+    """
+    try:
+        # Fetch job from MongoDB
+        job = AnalysisJobManager.get_job(job_id)
+        
+        if not job:
+            return Response({
+                'error': 'Report not found',
+                'job_id': job_id
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if job belongs to authenticated user
+        if job.get('user_id') != request.user.id:
+            return Response({
+                'error': 'Access denied - not your report',
+                'job_id': job_id
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Delete from MongoDB
+        db = mongodb.connect()
+        
+        # Delete analysis job
+        jobs_collection = db['analysis_jobs']
+        jobs_collection.delete_one({'job_id': job_id})
+        
+        # Delete associated audio file record
+        audio_collection = db['audio_files']
+        try:
+            audio_info = audio_collection.find_one({'_id': ObjectId(job['audio_id'])})
+            if audio_info:
+                # Delete physical file
+                audio_file_path = Path(audio_info.get('file_path', ''))
+                if audio_file_path.exists():
+                    audio_file_path.unlink()
+                
+                # Delete database record
+                audio_collection.delete_one({'_id': ObjectId(job['audio_id'])})
+        except Exception as e:
+            print(f"Failed to delete audio file: {e}")
+        
+        return Response({
+            'message': 'Report deleted successfully',
+            'job_id': job_id
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            'error': 'Failed to delete report',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(
+    responses={200: dict},
+    description="Get all uploaded audio files for the authenticated user"
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_audio_files(request):
+    """
+    Get all uploaded audio files for the authenticated user
+    """
+    try:
+        db = mongodb.connect()
+        audio_collection = db['audio_files']
+        
+        # Get all audio files for this user
+        user_files = list(audio_collection.find(
+            {'user_id': request.user.id},
+            {'_id': 0}
+        ).sort('uploaded_at', -1))
+        
+        return Response({
+            'audio_files': user_files,
+            'total_count': len(user_files)
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response({
+            'error': 'Failed to fetch user audio files',
             'details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

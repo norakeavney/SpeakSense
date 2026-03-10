@@ -21,6 +21,9 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 urlpatterns = [
     path('admin/', admin.site.urls),
     
+    # Authentication endpoints
+    path('api/auth/', include('speech_analysis.auth.urls')),
+    
     # API routes
     path('api/', include('speech_analysis.urls')),
     

@@ -31,13 +31,14 @@ class AnalysisJobManager:
         return db[AnalysisJobManager.COLLECTION_NAME]
     
     @staticmethod
-    def create_job(audio_id, audio_path):
+    def create_job(audio_id, audio_path, user_id):
         """
         Create a new analysis job
         
         Args:
             audio_id (str): MongoDB ObjectId of the audio file
             audio_path (str): Local file path to the audio file
+            user_id (int): Django User ID who owns this job
             
         Returns:
             str: The job_id (UUID)
@@ -48,6 +49,7 @@ class AnalysisJobManager:
         
         job_document = {
             'job_id': job_id,
+            'user_id': user_id,  # Track which user owns this job
             'audio_id': audio_id,
             'audio_path': audio_path,
             'status': AnalysisJobManager.STATUS_QUEUED,
