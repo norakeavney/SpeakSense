@@ -22,6 +22,8 @@ urlpatterns = [
     # User-specific endpoints
     path('user/reports/', views.user_reports, name='user_reports'),
     path('user/reports/<str:job_id>/', views.user_report_detail, name='user_report_detail'),
+    path('user/reports/<str:job_id>/download/', views.download_user_report_pdf, name='download_user_report_pdf'),
+    path('user/reports/<str:job_id>/rename/', views.rename_user_report, name='rename_user_report'),
     path('user/reports/<str:job_id>/delete/', views.delete_user_report, name='delete_user_report'),
     path('user/audio/', views.user_audio_files, name='user_audio_files'),
 ]

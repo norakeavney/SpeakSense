@@ -3,7 +3,8 @@
  * Handles all communication with Django REST API with JWT authentication
  */
 
-const API_BASE_URL = 'http://100.50.186.144:8000/api';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 // ============================================
 // AUTHENTICATION HELPERS
@@ -266,6 +267,60 @@ export const deleteReport = async (jobId) => {
     }
   } catch (error) {
     console.error('Report delete error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Rename report metadata
+ */
+export const renameReport = async (jobId, payload) => {
+  try {
+    const response = await authenticatedFetch(`${API_BASE_URL}/user/reports/${jobId}/rename/`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      return await response.json();
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to rename report');
+    }
+  } catch (error) {
+    console.error('Report rename error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Download report as PDF
+ */
+export const downloadReportPdf = async (jobId) => {
+  try {
+    const response = await authenticatedFetch(`${API_BASE_URL}/user/reports/${jobId}/download/`, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to download report PDF');
+    }
+
+    const blob = await response.blob();
+    const objectUrl = window.URL.createObjectURL(blob);
+    const contentDisposition = response.headers.get('Content-Disposition') || '';
+    const filenameMatch = contentDisposition.match(/filename="?([^\"]+)"?/i);
+    const filename = filenameMatch?.[1] || `report-${jobId}.pdf`;
+
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(objectUrl);
+  } catch (error) {
+    console.error('Report PDF download error:', error);
     throw error;
   }
 };

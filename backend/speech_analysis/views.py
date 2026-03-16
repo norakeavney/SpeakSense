@@ -6,8 +6,13 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from drf_spectacular.utils import extend_schema
+from django.http import HttpResponse
 from datetime import datetime, timezone
 import os
+import json
+import importlib
+import textwrap
+from io import BytesIO
 from pathlib import Path
 from django.conf import settings
 
@@ -18,6 +23,67 @@ from speech_analysis.db.analysis_jobs import AnalysisJobManager
 from speech_analysis.utils.youtube import download_youtube_audio
 from speech_analysis.utils.media import normalise_audio
 from bson import ObjectId
+
+
+def _build_report_pdf_bytes(job, audio_info):
+    pagesizes = importlib.import_module('reportlab.lib.pagesizes')
+    canvas_module = importlib.import_module('reportlab.pdfgen.canvas')
+    letter = pagesizes.letter
+
+    payload = {
+        'job_id': job.get('job_id'),
+        'status': job.get('status'),
+        'created_at': job.get('created_at'),
+        'updated_at': job.get('updated_at'),
+        'audio_file': {
+            'title': (audio_info or {}).get('title'),
+            'original_filename': (audio_info or {}).get('original_filename'),
+            'file_size': (audio_info or {}).get('file_size')
+        },
+        'steps': job.get('steps', {}),
+        'speaker_confirmations': job.get('speaker_confirmations', {}),
+        'results': job.get('results', {}),
+        'error': job.get('error')
+    }
+
+    report_text = json.dumps(payload, indent=2, default=str, ensure_ascii=False)
+    buffer = BytesIO()
+    pdf = canvas_module.Canvas(buffer, pagesize=letter)
+    page_width, page_height = letter
+    left_margin = 40
+    top_margin = page_height - 40
+    bottom_margin = 40
+
+    pdf.setTitle(f"SpeakSense Report {job.get('job_id', '')}")
+    y = top_margin
+
+    pdf.setFont('Helvetica-Bold', 14)
+    pdf.drawString(left_margin, y, 'SpeakSense Analysis Report')
+    y -= 22
+
+    pdf.setFont('Helvetica', 10)
+    generated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+    pdf.drawString(left_margin, y, f"Generated: {generated_at}")
+    y -= 18
+
+    title = (audio_info or {}).get('title') or 'Untitled'
+    pdf.drawString(left_margin, y, f"Title: {title}")
+    y -= 18
+
+    pdf.setFont('Courier', 8)
+    for line in report_text.splitlines():
+        wrapped_lines = textwrap.wrap(line, width=110) or ['']
+        for wrapped_line in wrapped_lines:
+            if y <= bottom_margin:
+                pdf.showPage()
+                y = top_margin
+                pdf.setFont('Courier', 8)
+            pdf.drawString(left_margin, y, wrapped_line)
+            y -= 12
+
+    pdf.save()
+    buffer.seek(0)
+    return buffer.getvalue()
 
 
 @api_view(['GET'])
@@ -487,6 +553,116 @@ def user_report_detail(request, job_id):
     except Exception as e:
         return Response({
             'error': 'Failed to fetch report details',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(
+    responses={200: bytes, 404: dict},
+    description='Download a specific analysis report as PDF for the authenticated user'
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def download_user_report_pdf(request, job_id):
+    try:
+        job = AnalysisJobManager.get_job(job_id)
+
+        if not job:
+            return Response({
+                'error': 'Report not found',
+                'job_id': job_id
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        if job.get('user_id') != request.user.id:
+            return Response({
+                'error': 'Access denied - not your report',
+                'job_id': job_id
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        db = mongodb.connect()
+        audio_collection = db['audio_files']
+        try:
+            audio_info = audio_collection.find_one(
+                {'_id': ObjectId(job['audio_id'])},
+                {'_id': 0}
+            )
+        except Exception:
+            audio_info = None
+
+        pdf_bytes = _build_report_pdf_bytes(job, audio_info)
+
+        raw_title = (audio_info or {}).get('title') or f"report-{job_id}"
+        safe_title = ''.join(c if c.isalnum() or c in ('-', '_') else '_' for c in raw_title).strip('_')
+        filename = f"{safe_title or f'report-{job_id}'}-{job_id}.pdf"
+
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+    except Exception as e:
+        return Response({
+            'error': 'Failed to generate report PDF',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(
+    responses={200: dict, 400: dict, 404: dict},
+    description='Rename a user report title and/or display filename'
+)
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def rename_user_report(request, job_id):
+    try:
+        job = AnalysisJobManager.get_job(job_id)
+
+        if not job:
+            return Response({
+                'error': 'Report not found',
+                'job_id': job_id
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        if job.get('user_id') != request.user.id:
+            return Response({
+                'error': 'Access denied - not your report',
+                'job_id': job_id
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        new_title = (request.data.get('title') or '').strip()
+        new_filename = (request.data.get('filename') or '').strip()
+
+        if not new_title and not new_filename:
+            return Response({
+                'error': 'No rename values provided',
+                'details': 'Provide title and/or filename'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        db = mongodb.connect()
+        audio_collection = db['audio_files']
+
+        updates = {}
+        if new_title:
+            updates['title'] = new_title
+        if new_filename:
+            updates['original_filename'] = new_filename
+
+        audio_collection.update_one(
+            {'_id': ObjectId(job['audio_id'])},
+            {'$set': updates}
+        )
+
+        return Response({
+            'message': 'Report renamed successfully',
+            'job_id': job_id,
+            'updated': {
+                'title': new_title or None,
+                'filename': new_filename or None
+            }
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            'error': 'Failed to rename report',
             'details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

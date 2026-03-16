@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   PieChart,
   Pie,
@@ -23,7 +23,10 @@ const COLORS = [
   '#0ea5e9',
 ];
 
-export default function Dashboard({ data, onStartNew }) {
+export default function Dashboard({ data, onStartNew, autoDownloadRequested = false, onAutoDownloadHandled }) {
+  const dashboardRef = useRef(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
+
   if (!data || !data.results) {
     return (
       <div className="p-10 text-center text-gray-500">
@@ -101,9 +104,79 @@ export default function Dashboard({ data, onStartNew }) {
   // FILE NAME (IF AVAILABLE)
   const fileName = data.filename || data.job_id || 'analysed Audio';
 
+  const handleExportVisualPdf = async () => {
+    if (!dashboardRef.current || exportingPdf) {
+      return;
+    }
+
+    try {
+      setExportingPdf(true);
+
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+
+      const canvas = await html2canvas(dashboardRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        windowWidth: dashboardRef.current.scrollWidth,
+      });
+
+      const imageData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imageWidth = pageWidth;
+      const imageHeight = (canvas.height * imageWidth) / canvas.width;
+
+      let heightLeft = imageHeight;
+      let position = 0;
+
+      pdf.addImage(imageData, 'PNG', 0, position, imageWidth, imageHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imageHeight;
+        pdf.addPage();
+        pdf.addImage(imageData, 'PNG', 0, position, imageWidth, imageHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const safeName = String(fileName).replace(/[^a-zA-Z0-9-_]/g, '_');
+      pdf.save(`${safeName || 'analysis-report'}-dashboard.pdf`);
+    } catch (error) {
+      console.error('Failed to export dashboard PDF:', error);
+      alert('Failed to export dashboard PDF');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!autoDownloadRequested || exportingPdf) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      await handleExportVisualPdf();
+      if (onAutoDownloadHandled) {
+        onAutoDownloadHandled();
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [autoDownloadRequested, exportingPdf]);
+
   // RENDER
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 py-10">
+    <div ref={dashboardRef} className="w-full max-w-7xl mx-auto px-6 py-10">
       <div className="grid grid-cols-12 gap-6">
         {/* HEADER / BIAS OVERVIEW */}
         <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
@@ -123,6 +196,13 @@ export default function Dashboard({ data, onStartNew }) {
                   Start New Analysis
                 </button>
               )}
+              <button
+                onClick={handleExportVisualPdf}
+                disabled={exportingPdf}
+                className="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50"
+              >
+                {exportingPdf ? 'Preparing PDF...' : 'Download Dashboard PDF'}
+              </button>
               <div className="w-64">
                 <p className="text-sm text-gray-500 mb-2 text-right">
                   Dominance Level

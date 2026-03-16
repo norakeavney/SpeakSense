@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getUserReports, deleteReport, getReportDetail } from '../lib/api';
+import { getUserReports, deleteReport, getReportDetail, renameReport } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const UserReports = ({ onSelectReport }) => {
@@ -9,6 +9,12 @@ const UserReports = ({ onSelectReport }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState({});
+  const [renameState, setRenameState] = useState({
+    jobId: null,
+    title: '',
+    filename: '',
+    loading: false,
+  });
   const { user } = useAuth();
 
   useEffect(() => {
@@ -45,13 +51,62 @@ const UserReports = ({ onSelectReport }) => {
     }
   };
 
-  const handleViewReport = async (jobId) => {
+  const handleViewReport = async (jobId, options = {}) => {
     try {
       const reportData = await getReportDetail(jobId);
-      onSelectReport(reportData);
+      onSelectReport(reportData, options);
     } catch (error) {
       console.error('Error fetching report details:', error);
       alert('Failed to load report details');
+    }
+  };
+
+  const startRename = (report) => {
+    setRenameState({
+      jobId: report.job_id,
+      title: report.audio_info?.title || '',
+      filename: report.audio_info?.filename || '',
+      loading: false,
+    });
+  };
+
+  const cancelRename = () => {
+    setRenameState({ jobId: null, title: '', filename: '', loading: false });
+  };
+
+  const saveRename = async (report) => {
+    const title = renameState.title.trim();
+    const filename = renameState.filename.trim();
+
+    if (!title && !filename) {
+      alert('Please provide at least a title or filename.');
+      return;
+    }
+
+    try {
+      setRenameState((prev) => ({ ...prev, loading: true }));
+      await renameReport(report.job_id, { title, filename });
+
+      setReports((prev) =>
+        prev.map((item) =>
+          item.job_id === report.job_id
+            ? {
+                ...item,
+                audio_info: {
+                  ...item.audio_info,
+                  title: title || item.audio_info?.title,
+                  filename: filename || item.audio_info?.filename,
+                },
+              }
+            : item
+        )
+      );
+
+      cancelRename();
+    } catch (error) {
+      console.error('Error renaming report:', error);
+      alert('Failed to rename report');
+      setRenameState((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -141,40 +196,102 @@ const UserReports = ({ onSelectReport }) => {
               
               return (
                 <li key={report.job_id} className="px-6 py-4 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
+                  <div
+                    className={`flex items-center justify-between ${report.status === 'done' ? 'cursor-pointer' : ''}`}
+                    onClick={() => report.status === 'done' && handleViewReport(report.job_id)}
+                  >
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-3">
-                        <h3 className="text-lg font-medium text-gray-900 truncate">
-                          {report.audio_info?.title || 'Untitled'}
-                        </h3>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
-                          {statusInfo.label}
-                        </span>
-                      </div>
-                      
-                      <div className="mt-1 flex items-center space-x-4 text-sm text-gray-500">
-                        <span>{report.audio_info?.filename || 'Unknown file'}</span>
-                        <span>{formatFileSize(report.audio_info?.size)}</span>
-                        <span>Created {formatDate(report.created_at)}</span>
-                      </div>
+                      {renameState.jobId === report.job_id ? (
+                        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="text"
+                            value={renameState.title}
+                            onChange={(e) => setRenameState((prev) => ({ ...prev, title: e.target.value }))}
+                            className="w-full border border-gray-300 rounded px-3 py-1 text-sm"
+                            placeholder="Report title"
+                          />
+                          <input
+                            type="text"
+                            value={renameState.filename}
+                            onChange={(e) => setRenameState((prev) => ({ ...prev, filename: e.target.value }))}
+                            className="w-full border border-gray-300 rounded px-3 py-1 text-sm"
+                            placeholder="Filename"
+                          />
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => saveRename(report)}
+                              disabled={renameState.loading}
+                              className="px-3 py-1 text-xs bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
+                            >
+                              {renameState.loading ? 'Saving...' : 'Save'}
+                            </button>
+                            <button
+                              onClick={cancelRename}
+                              className="px-3 py-1 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center space-x-3">
+                            <h3 className="text-lg font-medium text-gray-900 truncate">
+                              {report.audio_info?.title || 'Untitled'}
+                            </h3>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                              {statusInfo.label}
+                            </span>
+                          </div>
+
+                          <div className="mt-1 flex items-center space-x-4 text-sm text-gray-500">
+                            <span>{report.audio_info?.filename || 'Unknown file'}</span>
+                            <span>{formatFileSize(report.audio_info?.size)}</span>
+                            <span>Created {formatDate(report.created_at)}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 ml-4" onClick={(e) => e.stopPropagation()}>
                       {report.status === 'done' && (
                         <button
-                          onClick={() => handleViewReport(report.job_id)}
-                          className="px-3 py-1 text-sm bg-black text-white rounded hover:bg-gray-800"
+                          onClick={() => handleViewReport(report.job_id, { autoDownload: true })}
+                          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                          title="Download"
+                          aria-label="Download"
                         >
-                          View Results
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v10m0 0l-4-4m4 4l4-4M5 19h14" />
+                          </svg>
                         </button>
                       )}
+
+                      <button
+                        onClick={() => startRename(report)}
+                        className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                        title="Rename"
+                        aria-label="Rename"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
                       
                       <button
                         onClick={() => handleDeleteReport(report.job_id)}
                         disabled={deleteLoading[report.job_id]}
-                        className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded disabled:opacity-50"
+                        title="Delete"
+                        aria-label="Delete"
                       >
-                        {deleteLoading[report.job_id] ? 'Deleting...' : 'Delete'}
+                        {deleteLoading[report.job_id] ? (
+                          <span className="text-xs">...</span>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0l1 12h6l1-12" />
+                          </svg>
+                        )}
                       </button>
                     </div>
                   </div>

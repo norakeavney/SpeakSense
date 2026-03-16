@@ -15,6 +15,7 @@ export default function HomePage() {
   const [stage, setStage] = useState('upload');
   const [jobId, setJobId] = useState(null);
   const [analysisData, setAnalysisData] = useState(null);
+  const [autoDownloadRequested, setAutoDownloadRequested] = useState(false);
 
   // Handle page changes in authenticated view
   const handlePageChange = (page) => {
@@ -24,12 +25,14 @@ export default function HomePage() {
       setStage('upload');
       setJobId(null);
       setAnalysisData(null);
+      setAutoDownloadRequested(false);
     }
   };
 
   // Handle selecting a report from UserReports
-  const handleSelectReport = (reportData) => {
+  const handleSelectReport = (reportData, options = {}) => {
     setAnalysisData(reportData.report);
+    setAutoDownloadRequested(Boolean(options.autoDownload));
     setStage('dashboard');
     setCurrentPage('upload'); // Switch to upload page to show dashboard
   };
@@ -79,10 +82,13 @@ export default function HomePage() {
           {stage === 'dashboard' && (
             <Dashboard
               data={analysisData}
+              autoDownloadRequested={autoDownloadRequested}
+              onAutoDownloadHandled={() => setAutoDownloadRequested(false)}
               onStartNew={() => {
                 setStage('upload');
                 setJobId(null);
                 setAnalysisData(null);
+                setAutoDownloadRequested(false);
               }}
             />
           )}

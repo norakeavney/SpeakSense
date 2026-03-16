@@ -206,6 +206,7 @@ SPECTACULAR_SETTINGS = {
 # For development - allow frontend to make requests
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Local development
+    "http://localhost:8000",  # Backend API
     "http://127.0.0.1:3000",  # Localhost alternative
     "http://100.50.186.144:3000",  # EC2
     "http://100.50.186.144:8000",  # Backend API
