@@ -25,7 +25,9 @@ const COLORS = [
 
 export default function Dashboard({ data, onStartNew, autoDownloadRequested = false, onAutoDownloadHandled }) {
   const dashboardRef = useRef(null);
+  const reportRef = useRef(null);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   if (!data || !data.results) {
     return (
@@ -105,7 +107,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
   const fileName = data.filename || data.job_id || 'analysed Audio';
 
   const handleExportVisualPdf = async () => {
-    if (!dashboardRef.current || exportingPdf) {
+    if (!reportRef.current || exportingPdf) {
       return;
     }
 
@@ -117,12 +119,21 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
         import('jspdf'),
       ]);
 
-      const canvas = await html2canvas(dashboardRef.current, {
+      setIsGeneratingPdf(true);
+
+      reportRef.current.style.display = 'block';
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      const canvas = await html2canvas(reportRef.current, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
-        windowWidth: dashboardRef.current.scrollWidth,
+        windowWidth: reportRef.current.scrollWidth,
       });
+
+      // Hide it again after capture
+      setIsGeneratingPdf(false);
+      reportRef.current.style.display = 'none';
 
       const imageData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
@@ -150,11 +161,14 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
       }
 
       const safeName = String(fileName).replace(/[^a-zA-Z0-9-_]/g, '_');
-      pdf.save(`${safeName || 'analysis-report'}-dashboard.pdf`);
+      pdf.save(`${safeName || 'analysis-report'}-report.pdf`);
     } catch (error) {
-      console.error('Failed to export dashboard PDF:', error);
-      alert('Failed to export dashboard PDF');
+      console.error('Failed to export report PDF:', error);
+      alert('Failed to export report PDF');
     } finally {
+      if (reportRef.current) {
+        reportRef.current.style.display = 'none';
+      }
       setExportingPdf(false);
     }
   };
@@ -176,8 +190,9 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
 
   // RENDER
   return (
-    <div ref={dashboardRef} className="w-full max-w-7xl mx-auto px-6 py-10">
-      <div className="grid grid-cols-12 gap-6">
+    <>
+      <div ref={dashboardRef} className="w-full max-w-7xl mx-auto px-6 py-10">
+        <div className="grid grid-cols-12 gap-6">
         {/* HEADER / BIAS OVERVIEW */}
         <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
           <div className="flex items-center">
@@ -201,7 +216,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
                 disabled={exportingPdf}
                 className="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50"
               >
-                {exportingPdf ? 'Preparing PDF...' : 'Download Dashboard PDF'}
+                {exportingPdf ? 'Preparing PDF...' : 'Download Report PDF'}
               </button>
               <div className="w-64">
                 <p className="text-sm text-gray-500 mb-2 text-right">
@@ -250,6 +265,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
                   dataKey="value"
                   nameKey="name"
                   outerRadius={110}
+                  isAnimationActive={!isGeneratingPdf}
                 >
                   {pieData.map((entry, index) => (
                     <Cell
@@ -279,7 +295,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="value" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" fill="#2563eb" radius={[4, 4, 0, 0]} isAnimationActive={!isGeneratingPdf}/>
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -388,11 +404,130 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
           )}
         </div>
 
-        {/* ENHANCED SPEAKER ANALYSIS */}
-        <div className="col-span-12">
-          <SpeakerAnalysis results={results} />
+          {/* ENHANCED SPEAKER ANALYSIS */}
+          <div className="col-span-12">
+            <SpeakerAnalysis results={results} />
+          </div>
         </div>
       </div>
-    </div>
+      <div
+        ref={reportRef}
+        style={{ display: 'none' }}
+        className="bg-white text-black w-[1200px] p-10"
+      >
+        <h2 className="text-xl font-bold mt-10 mb-4 border-b pb-2">
+          Speaker Behaviour Analysis
+        </h2>
+        <div className="mb-8 border-b pb-4">
+          <h1 className="text-3xl font-bold">SpeakSense Analysis Report</h1>
+          <p className="text-gray-600 mt-2">{fileName}</p>
+          <p className="text-sm text-gray-500">
+            Generated on {new Date().toLocaleString()}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-4 gap-4 mb-8">
+          {[
+            { label: 'Speakers', value: speakerCount },
+            { label: 'Duration', value: duration },
+            { label: 'Total Words', value: totalWords },
+            { label: 'Avg WPM', value: avgWPM },
+          ].map((item, i) => (
+            <div key={i} className="border rounded-lg p-4">
+              <p className="text-sm text-gray-500 uppercase">{item.label}</p>
+              <p className="text-2xl font-semibold mt-2">{item.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 gap-6 mb-8">
+          <div className="border rounded-xl p-6">
+            <h2 className="text-lg font-semibold mb-4">Emotion Distribution</h2>
+            {pieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={110}>
+                    {pieData.map((entry, index) => (
+                      <Cell
+                        key={`pdf-pie-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-gray-400 text-sm">No emotion data available.</p>
+            )}
+          </div>
+
+          <div className="border rounded-xl p-6">
+            <h2 className="text-lg font-semibold mb-4">Speaker Activity</h2>
+            {barData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={barData}>
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-gray-400 text-sm">No speaker metrics available.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="border rounded-xl p-6 mb-8">
+          <h2 className="text-lg font-semibold mb-4">Topics</h2>
+          {results.topics?.keywords?.length ? (
+            <div className="flex flex-wrap gap-2">
+              {results.topics.keywords.map((keyword, index) => (
+                <span
+                  key={index}
+                  className="px-3 py-1 bg-gray-100 text-sm rounded-full border"
+                >
+                  {keyword}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-400 text-sm">No topic data available.</p>
+          )}
+        </div>
+
+        <div className="border rounded-xl p-6 mb-8">
+          <h2 className="text-lg font-semibold mb-4">Basic Speaker Metrics</h2>
+          <div className="space-y-4">
+            {Object.entries(speakerMetrics).map(([speaker, metrics]) => (
+              <div key={speaker} className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-2">{speaker}</h3>
+                <p>Speaking time: {metrics.speaking_time_seconds ?? 0}s</p>
+                <p>Words: {metrics.total_words ?? 0}</p>
+                <p>WPM: {Math.round(metrics.words_per_minute ?? 0)}</p>
+                <p>Turns: {metrics.num_turns ?? 0}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="border rounded-xl p-6 mb-8">
+          <h2 className="text-lg font-semibold mb-4">Sentiment Analysis</h2>
+
+          {results?.speaker_metrics?.sentiment_analysis &&
+            Object.entries(results.speaker_metrics.sentiment_analysis).map(
+              ([speaker, sentiment]) => (
+                <div key={speaker} className="border rounded-lg p-4 mb-3">
+                  <h3 className="font-semibold">{speaker}</h3>
+                  <p>Positive: {(sentiment.overall_sentiment.positive * 100).toFixed(1)}%</p>
+                  <p>Negative: {(sentiment.overall_sentiment.negative * 100).toFixed(1)}%</p>
+                  <p>Neutral: {(sentiment.overall_sentiment.neutral * 100).toFixed(1)}%</p>
+                </div>
+              )
+            )}
+        </div>
+      </div>
+    </>
   );
 }
