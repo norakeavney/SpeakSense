@@ -13,6 +13,9 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import SpeakerAnalysis from './SpeakerAnalysis';
+import WordCloud from './WordCloud';
+import TopicSentimentAnalysis from './TopicSentimentAnalysis';
+import PerSpeakerTopics from './PerSpeakerTopics';
 
 const COLORS = [
   '#2563eb',
@@ -390,19 +393,46 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
             </div>
 
             <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-              <h3 className="text-base font-medium mb-6">Topics</h3>
+              <h3 className="text-base font-medium mb-6">Topics Word Cloud</h3>
               {results.topics?.keywords?.length ? (
-                <div className="flex flex-wrap gap-2">
-                  {results.topics.keywords.map((keyword, index) => (
-                    <span key={index} className="px-3 py-1 bg-gray-100 text-sm rounded-full border">
-                      {keyword}
-                    </span>
-                  ))}
-                </div>
+                <WordCloud 
+                  words={results.topics.keywords.map((keyword) => ({
+                    word: keyword,
+                    score: results.topics.scores?.[keyword] || 0.5
+                  }))}
+                  height={400}
+                  maxWords={40}
+                />
               ) : (
                 <p className="text-gray-400 text-sm">No topic data available.</p>
               )}
             </div>
+
+            {results.topics?.per_speaker_topics && Object.keys(results.topics.per_speaker_topics).length > 0 && (
+              <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                <h3 className="text-base font-medium mb-6">Speaker Topics</h3>
+                <PerSpeakerTopics 
+                  perSpeakerTopics={results.topics.per_speaker_topics}
+                  activeSpeaker={activeTab !== 'overview' && activeTab !== 'transcript' ? activeTab : null}
+                  speakerColors={Object.fromEntries(
+                    results.diarization?.speakers?.map((speaker, idx) => [
+                      speaker,
+                      getSpeakerTabColor(idx)
+                    ]) || []
+                  )}
+                />
+              </div>
+            )}
+
+            {results.topics?.topic_sentiment && Object.keys(results.topics.topic_sentiment).length > 0 && (
+              <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                <h3 className="text-base font-medium mb-6">Topic Sentiment Analysis</h3>
+                <TopicSentimentAnalysis 
+                  topicSentiment={results.topics.topic_sentiment}
+                  speakersAvailable={results.diarization?.speakers || []}
+                />
+              </div>
+            )}
 
             <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
               <h3 className="text-base font-medium mb-6">Political Alignment</h3>
@@ -629,17 +659,35 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
         </div>
 
         <div className="border rounded-xl p-6 mb-8">
-          <h2 className="text-lg font-semibold mb-4">Topics</h2>
+          <h2 className="text-lg font-semibold mb-4">Topics & Keywords</h2>
           {results.topics?.keywords?.length ? (
-            <div className="flex flex-wrap gap-2">
-              {results.topics.keywords.map((keyword, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 bg-gray-100 text-sm rounded-full border"
-                >
-                  {keyword}
-                </span>
-              ))}
+            <div>
+              <div className="mb-4">
+                <h3 className="text-sm font-medium mb-2">Main Topics:</h3>
+                <div className="flex flex-wrap gap-2">
+                  {(results.topics.main_topics || []).slice(0, 10).map((topic, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full border border-blue-200"
+                    >
+                      {topic}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium mb-2">All Keywords:</h3>
+                <div className="flex flex-wrap gap-2">
+                  {results.topics.keywords.slice(0, 20).map((keyword, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-gray-100 text-sm rounded-full border"
+                    >
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
             <p className="text-gray-400 text-sm">No topic data available.</p>

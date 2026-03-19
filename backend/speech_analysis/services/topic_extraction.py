@@ -39,29 +39,33 @@ def _clean_text(text: str) -> str:
     return re.sub(r'\s+', ' ', text).strip()
 
 
-def _structural_filter(topics: list) -> list:
+def _structural_filter(topics: list, min_score: float = 0.20) -> list:
     """
     Filter bad phrases using universal rules - no hardcoded topic words.
     Works for ANY debate type.
+    
+    Args:
+        topics: List of (phrase, score) tuples
+        min_score: Minimum relevance score threshold (default 0.20, lower = more permissive)
     """
     kept = []
     for phrase, score in topics:
         words = phrase.split()
 
         # Must have a minimum relevance score
-        if score < 0.30:
+        if score < min_score:
             continue
 
         # Skip phrases containing digits (catches "16 19th century" etc.)
         if any(w.isdigit() for w in words):
             continue
 
-        # Single words need a higher score to be considered a topic
-        if len(words) == 1 and score < 0.45:
+        # Single words need a slightly higher score to be considered a topic
+        if len(words) == 1 and score < min_score + 0.15:
             continue
 
-        # Skip very short word fragments (avg word length under 3 chars)
-        if sum(len(w) for w in words) / len(words) < 3:
+        # Skip very short word fragments (avg word length under 2.5 chars) - slightly relaxed
+        if sum(len(w) for w in words) / len(words) < 2.5:
             continue
 
         kept.append((phrase, score))
@@ -109,10 +113,15 @@ def _generate_summary(text: str) -> str:
         return ""
 
 
-def _semantic_rerank(topics: list, anchor_text: str) -> list:
+def _semantic_rerank(topics: list, anchor_text: str, min_similarity: float = 0.12) -> list:
     """
     Score each topic phrase against the debate summary using cosine similarity.
     Phrases unrelated to the actual debate content get dropped.
+    
+    Args:
+        topics: List of (phrase, score) tuples
+        anchor_text: Reference text (debate summary) to compare against
+        min_similarity: Minimum semantic similarity threshold (default 0.12, lower = more permissive)
     """
     global _embed_model
     if not anchor_text or not topics:
@@ -130,9 +139,10 @@ def _semantic_rerank(topics: list, anchor_text: str) -> list:
             phrase_emb = _embed_model.encode(phrase, convert_to_tensor=True)
             similarity = float(util.cos_sim(anchor_emb, phrase_emb))
 
-            # Only keep phrases semantically related to the actual debate
-            if similarity >= 0.25:
-                combined = (score * 0.6) + (similarity * 0.4)
+            # Only keep phrases semantically related to the actual debate (relaxed threshold)
+            if similarity >= min_similarity:
+                # Combine original KeyBERT score with semantic relevance
+                combined = (score * 0.7) + (similarity * 0.3)
                 reranked.append((phrase, combined))
 
         reranked.sort(key=lambda x: x[1], reverse=True)
@@ -159,8 +169,11 @@ def _fallback_topics(text: str, max_topics: int, max_keywords: int) -> dict:
 def extract_topics(
     text: str,
     segments: list = None,
-    max_topics: int = 5,
-    max_keywords: int = 15
+    max_topics: int = 8,
+    max_keywords: int = 25,
+    min_score: float = 0.20,
+    min_similarity: float = 0.12,
+    diversity: float = 0.65
 ) -> dict:
     """
     Full pipeline:
@@ -169,6 +182,15 @@ def extract_topics(
       3. OpenAI summarizes the debate
       4. Semantic reranking keeps only phrases relevant to the actual debate
       5. Returns clean topics + source segments for frontend hover
+    
+    Parameters:
+        text: Input text to extract topics from
+        segments: Optional list of text segments
+        max_topics: Maximum number of main topics to return (default 8)
+        max_keywords: Maximum number of keywords to extract (default 25)
+        min_score: Minimum KeyBERT score threshold (default 0.20, lower = more permissive)
+        min_similarity: Minimum semantic similarity threshold (default 0.12, lower = more permissive)
+        diversity: KeyBERT diversity parameter (default 0.65, lower = more similar topics allowed)
     """
     text = _clean_text(text)
     if not text:
@@ -188,20 +210,20 @@ def extract_topics(
             text,
             vectorizer=CountVectorizer(ngram_range=(1, 3), stop_words="english", min_df=1),
             use_mmr=True,
-            diversity=0.7,
+            diversity=diversity,
             top_n=max_keywords
         )
         print(f"  → {len(raw)} raw candidates extracted")
 
-        # Step 2 - Remove structural garbage
-        filtered = _structural_filter(raw)
+        # Step 2 - Remove structural garbage (with configurable strictness)
+        filtered = _structural_filter(raw, min_score=min_score)
         print(f"  → {len(filtered)} after structural filter")
 
         # Step 3 - Summarize the debate (context anchor)
         summary = _generate_summary(text)
 
-        # Step 4 - Drop topics unrelated to actual debate content
-        final = _semantic_rerank(filtered, summary) if summary else filtered
+        # Step 4 - Drop topics unrelated to actual debate content (with configurable threshold)
+        final = _semantic_rerank(filtered, summary, min_similarity=min_similarity) if summary else filtered
         print(f"  → {len(final)} after semantic reranking")
 
         keywords = [phrase for phrase, _ in final]

@@ -652,16 +652,204 @@ def detect_interruptions(transcript):
     }
 
 
+def extract_topics_per_speaker(transcript, topics_data=None):
+    """
+    Extract main topics discussed by each speaker using topic extraction.
+    
+    Args:
+        transcript: List of turn dictionaries with 'text' and 'speaker' keys
+        topics_data: Global topics data (optional, for reference scoring)
+    
+    Returns:
+        Dict with topic analysis per speaker
+    """
+    from speech_analysis.services.topic_extraction import extract_topics
+    
+    if not transcript:
+        return {}
+    
+    speaker_topics = {}
+    global_scores = {}
+    
+    # Get global topic scores for reference
+    if topics_data and topics_data.get('scores'):
+        global_scores = topics_data['scores']
+    
+    # Group turns by speaker
+    speakers_turns = {}
+    for turn in transcript:
+        speaker = turn.get('speaker', 'unknown')
+        if speaker not in speakers_turns:
+            speakers_turns[speaker] = []
+        speakers_turns[speaker].append(turn)
+    
+    # Extract topics for each speaker
+    for speaker, turns in speakers_turns.items():
+        speaker_text = " ".join([turn.get('text', '') for turn in turns])
+        
+        if not speaker_text.strip():
+            speaker_topics[speaker] = {
+                'topics': [],
+                'keywords': [],
+                'scores': {}
+            }
+            continue
+        
+        try:
+            # Extract topics for this speaker with more permissive settings
+            # Looser thresholds since per-speaker text is smaller
+            result = extract_topics(
+                speaker_text, 
+                max_topics=6,           # Increased from 5
+                max_keywords=15,        # Increased from 10
+                min_score=0.15,         # Relaxed from default 0.20
+                min_similarity=0.10,    # Relaxed from default 0.12
+                diversity=0.60          # Slightly lower (allow more similar topics)
+            )
+            
+            speaker_topics[speaker] = {
+                'topics': result.get('main_topics', []),
+                'keywords': result.get('keywords', []),
+                'scores': result.get('scores', {}),
+                'turn_count': len(turns)
+            }
+        except Exception as e:
+            print(f"  → Topic extraction for {speaker} failed: {e}")
+            speaker_topics[speaker] = {
+                'topics': [],
+                'keywords': [],
+                'scores': {},
+                'error': str(e)
+            }
+    
+    return speaker_topics
+
+
+def analyze_topic_sentiment(transcript, topics_list=None):
+    """
+    Analyze sentiment of specific topics mentioned by speakers.
+    
+    Args:
+        transcript: List of turn dictionaries with 'text' and 'speaker' keys
+        topics_list: List of topics to analyze (None = use all keywords from all turns)
+    
+    Returns:
+        Dict with sentiment analysis per topic and speaker
+    """
+    if not transcript or not topics_list:
+        return {}
+    
+    sentiment_per_topic = {}
+    
+    # Use VADER for sentiment analysis
+    if not VADER_AVAILABLE:
+        return {'error': 'VADER sentiment analyzer not available'}
+    
+    analyzer = SentimentIntensityAnalyzer()
+    
+    # For each topic, find relevant segments and analyze sentiment
+    for topic in topics_list:
+        topic_lower = topic.lower()
+        sentiment_per_topic[topic] = {
+            'mentions': 0,
+            'positive_mentions': 0,
+            'negative_mentions': 0,
+            'neutral_mentions': 0,
+            'average_sentiment': 0,
+            'per_speaker': {},
+            'example_passages': []
+        }
+        
+        topic_sentiments = []
+        
+        for turn in transcript:
+            text = turn.get('text', '')
+            speaker = turn.get('speaker', 'unknown')
+            
+            # Check if topic is mentioned in this turn
+            if topic_lower in text.lower():
+                sentiment_per_topic[topic]['mentions'] += 1
+                
+                # Analyze sentiment of this turn
+                scores = analyzer.polarity_scores(text)
+                compound = scores['compound']
+                
+                topic_sentiments.append(compound)
+                
+                # Categorize sentiment
+                if compound >= 0.05:
+                    sentiment_per_topic[topic]['positive_mentions'] += 1
+                    category = 'positive'
+                elif compound <= -0.05:
+                    sentiment_per_topic[topic]['negative_mentions'] += 1
+                    category = 'negative'
+                else:
+                    sentiment_per_topic[topic]['neutral_mentions'] += 1
+                    category = 'neutral'
+                
+                # Track per-speaker sentiment
+                if speaker not in sentiment_per_topic[topic]['per_speaker']:
+                    sentiment_per_topic[topic]['per_speaker'][speaker] = {
+                        'mentions': 0,
+                        'positive': 0,
+                        'negative': 0,
+                        'neutral': 0,
+                        'compounds': []
+                    }
+                
+                sentiment_per_topic[topic]['per_speaker'][speaker]['mentions'] += 1
+                sentiment_per_topic[topic]['per_speaker'][speaker]['compounds'].append(compound)
+                
+                if category == 'positive':
+                    sentiment_per_topic[topic]['per_speaker'][speaker]['positive'] += 1
+                elif category == 'negative':
+                    sentiment_per_topic[topic]['per_speaker'][speaker]['negative'] += 1
+                else:
+                    sentiment_per_topic[topic]['per_speaker'][speaker]['neutral'] += 1
+                
+                # Store example passages
+                if len(sentiment_per_topic[topic]['example_passages']) < 3:
+                    sentiment_per_topic[topic]['example_passages'].append({
+                        'text': text[:150],
+                        'speaker': speaker,
+                        'sentiment': category,
+                        'score': round(compound, 3)
+                    })
+        
+        # Calculate average sentiment
+        if topic_sentiments:
+            sentiment_per_topic[topic]['average_sentiment'] = round(
+                sum(topic_sentiments) / len(topic_sentiments), 3
+            )
+            
+            # Calculate percentages per speaker
+            for speaker in sentiment_per_topic[topic]['per_speaker']:
+                data = sentiment_per_topic[topic]['per_speaker'][speaker]
+                if data['mentions'] > 0:
+                    data['avg_compound'] = round(
+                        sum(data['compounds']) / len(data['compounds']), 3
+                    )
+                    data['positive_pct'] = round(
+                        (data['positive'] / data['mentions']) * 100, 1
+                    )
+                    data['negative_pct'] = round(
+                        (data['negative'] / data['mentions']) * 100, 1
+                    )
+                    data['neutral_pct'] = round(
+                        (data['neutral'] / data['mentions']) * 100, 1
+                    )
+                    # Remove the raw compounds list from final output
+                    del data['compounds']
+    
+    return sentiment_per_topic
+
+
 # TODO: def analyse_pauses(transcript, audio_path):
 #     """analyse silence/pause patterns between turns"""
 #     pass
 
 # TODO: def detect_emotions_per_speaker(speaker_turns):
 #     """Detect emotions using DistilBERT model"""
-#     pass
-
-# TODO: def extract_topics_per_speaker(speaker_turns):
-#     """Extract main topics discussed by each speaker using KeyBERT"""
 #     pass
 
 # TODO: def analyse_loudness_per_speaker(audio_path, transcript):

@@ -9,7 +9,9 @@ from speech_analysis.services.speaker_metrics import (
     detect_agreement_disagreement, 
     calculate_sentiment_per_speaker, 
     detect_leading_questions, 
-    detect_interruptions
+    detect_interruptions,
+    extract_topics_per_speaker,
+    analyze_topic_sentiment
 )
 from speech_analysis.services.emotion_analysis import (
     analyse_emotions, 
@@ -224,9 +226,9 @@ def _process_job(job_id, audio_path):
             AnalysisJobManager.update_step(job_id, "emotion", AnalysisJobManager.STEP_DONE)
         
         # ========================================
-        # STEP 4: TOPICS (Baseline)
+        # STEP 4: TOPICS (Baseline + Per-Speaker + Sentiment)
         # ========================================
-        print("\nSTEP 4/4: Topic Extraction (baseline)")
+        print("\nSTEP 4/4: Topic Extraction (baseline + per-speaker + sentiment)")
         AnalysisJobManager.update_step(job_id, "topics", AnalysisJobManager.STEP_PROCESSING)
 
         try:
@@ -239,14 +241,48 @@ def _process_job(job_id, audio_path):
             else:
                 topic_text = (analysis_result.get("text") or "").strip()
 
-            topics_result = extract_topics(topic_text)
+            # Extract global topics with slightly looser parameters to capture more keywords
+            topics_result = extract_topics(
+                topic_text,
+                max_topics=8,           # Increased from default 5
+                max_keywords=25,        # Increased from default 15
+                min_score=0.18,         # Slightly relaxed from default 0.20
+                min_similarity=0.10     # Relaxed from default 0.12
+            )
+            
+            # Extract per-speaker topics
+            print("  → Extracting per-speaker topics...")
+            try:
+                per_speaker_topics = extract_topics_per_speaker(transcript_segments, topics_result)
+                topics_result['per_speaker_topics'] = per_speaker_topics
+                print(f"  ✓ Per-speaker topics extracted for {len(per_speaker_topics)} speakers")
+            except Exception as e:
+                print(f"  ⚠ Per-speaker topic extraction failed: {e}")
+                topics_result['per_speaker_topics'] = {}
+            
+            # Analyze sentiment on topics
+            print("  → Analyzing topic sentiment...")
+            try:
+                keywords_to_analyze = topics_result.get('keywords', [])
+                if keywords_to_analyze and transcript_segments:
+                    topic_sentiment = analyze_topic_sentiment(transcript_segments, keywords_to_analyze)
+                    topics_result['topic_sentiment'] = topic_sentiment
+                    print(f"  ✓ Topic sentiment analyzed for {len(topic_sentiment)} topics")
+                else:
+                    topics_result['topic_sentiment'] = {}
+            except Exception as e:
+                print(f"  ⚠ Topic sentiment analysis failed: {e}")
+                topics_result['topic_sentiment'] = {}
+            
             AnalysisJobManager.update_result(job_id, "topics", topics_result)
             AnalysisJobManager.update_step(job_id, "topics", AnalysisJobManager.STEP_DONE)
-            print(f"✓ Topic extraction complete. Topics: {len(topics_result.get('main_topics', []))}")
+            print(f"✓ Topic extraction complete. Global topics: {len(topics_result.get('main_topics', []))}")
 
         except Exception as e:
             error_msg = f"Topic extraction failed: {str(e)}"
             print(f"✗ {error_msg}")
+            import traceback
+            traceback.print_exc()
             AnalysisJobManager.update_result(job_id, "topics", {
                 "main_topics": [],
                 "keywords": [],
