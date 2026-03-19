@@ -23,11 +23,32 @@ const COLORS = [
   '#0ea5e9',
 ];
 
+// Pastel/muted colors for tabs
+const TAB_COLORS = {
+  overview: { bg: '#f5e6d3', border: '#d6b8a0', text: '#8b6f47' },
+  transcript: { bg: '#d1e7f0', border: '#7fa8c1', text: '#2c5282' },
+};
+
+// Function to get color for speaker tabs (cycling through pastel colors)
+const getSpeakerTabColor = (index) => {
+  const speakerColors = [
+    { bg: '#e8d5f2', border: '#b39ddb', text: '#6a1b9a' },
+    { bg: '#d1f2eb', border: '#80cbc4', text: '#00796b' },
+    { bg: '#fff3d5', border: '#ffe082', text: '#f57f17' },
+    { bg: '#fce4ec', border: '#f48fb1', text: '#c2185b' },
+    { bg: '#e0f2f1', border: '#80deea', text: '#00695c' },
+    { bg: '#f3e5f5', border: '#ce93d8', text: '#512da8' },
+  ];
+  return speakerColors[index % speakerColors.length];
+};
+
 export default function Dashboard({ data, onStartNew, autoDownloadRequested = false, onAutoDownloadHandled }) {
   const dashboardRef = useRef(null);
   const reportRef = useRef(null);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  
 
   if (!data || !data.results) {
     return (
@@ -64,12 +85,27 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
 
   // SPEAKER → BAR DATA
   const speakerMetrics = results.speaker_metrics?.speakers || {};
+  const speakers = Object.keys(speakerMetrics);
+  const transcriptTurns = results.diarization?.transcript || [];
   const barData = Object.entries(speakerMetrics).map(
     ([speaker, metrics]) => ({
       name: speaker,
       value: metrics.speaking_time_seconds,
     })
   );
+
+  const selectedSpeakerMetrics =
+    activeTab !== 'overview' && activeTab !== 'transcript'
+      ? speakerMetrics[activeTab]
+      : null;
+  const selectedSpeakerTurns =
+    activeTab !== 'overview' && activeTab !== 'transcript'
+      ? transcriptTurns.filter((turn) => turn.speaker === activeTab)
+      : [];
+  const selectedSentiment =
+    activeTab !== 'overview' && activeTab !== 'transcript'
+      ? results?.speaker_metrics?.sentiment_analysis?.[activeTab]
+      : null;
 
   // DOMINANCE CALCULATION
   const totalSpeakingTime = barData.reduce((sum, s) => sum + s.value, 0);
@@ -191,6 +227,65 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
   // RENDER
   return (
     <>
+    <div className="flex items-end gap-2 mb-6 border-b border-gray-300">
+
+      {/* Overview */}
+      <button
+        onClick={() => setActiveTab("overview")}
+        className={`px-5 py-2 rounded-t-xl text-sm font-medium transition-all duration-200 ${
+          activeTab === "overview"
+            ? `border-2 border-b-0 shadow-sm text-white`
+            : "text-gray-600 hover:opacity-80 transition-opacity"
+        }`}
+        style={{
+          backgroundColor: activeTab === "overview" ? TAB_COLORS.overview.border : TAB_COLORS.overview.bg,
+          color: TAB_COLORS.overview.text,
+        }}
+      >
+        Overview
+      </button>
+
+      {/* Transcript */}
+      <button
+        onClick={() => setActiveTab("transcript")}
+        className={`px-5 py-2 rounded-t-xl text-sm font-medium transition-all duration-200 ${
+          activeTab === "transcript"
+            ? `border-2 border-b-0 shadow-sm`
+            : "hover:opacity-80 transition-opacity"
+        }`}
+        style={{
+          backgroundColor: activeTab === "transcript" ? TAB_COLORS.transcript.border : TAB_COLORS.transcript.bg,
+          color: TAB_COLORS.transcript.text,
+          borderColor: activeTab === "transcript" ? TAB_COLORS.transcript.border : "transparent",
+        }}
+      >
+        Transcript
+      </button>
+
+      {/* Speakers */}
+      {speakers.map((speaker, index) => {
+        const speakerColor = getSpeakerTabColor(index);
+        return (
+          <button
+            key={speaker}
+            onClick={() => setActiveTab(speaker)}
+            className={`px-5 py-2 rounded-t-xl text-sm font-medium transition-all duration-200 ${
+              activeTab === speaker
+                ? `border-2 border-b-0 shadow-sm`
+                : "hover:opacity-80 transition-opacity"
+            }`}
+            style={{
+              backgroundColor: activeTab === speaker ? speakerColor.border : speakerColor.bg,
+              color: speakerColor.text,
+              borderColor: activeTab === speaker ? speakerColor.border : "transparent",
+            }}
+          >
+            {speaker.replace("_", " ")}
+          </button>
+        );
+      })}
+
+    </div>
       <div ref={dashboardRef} className="w-full max-w-7xl mx-auto px-6 py-10">
         <div className="grid grid-cols-12 gap-6">
         {/* HEADER / BIAS OVERVIEW */}
@@ -236,178 +331,232 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
           </div>
         </div>
 
-        {/* KPI CARDS */}
-        {[
-          { label: 'Speakers', value: speakerCount },
-          { label: 'Duration', value: duration },
-          { label: 'Total Words', value: totalWords },
-          { label: 'Avg WPM', value: avgWPM },
-        ].map((item, i) => (
-          <div
-            key={i}
-            className="col-span-12 sm:col-span-6 lg:col-span-3 bg-white border border-gray-200 rounded-xl p-6 shadow-sm"
-          >
-            <p className="text-sm text-gray-500 uppercase tracking-wide">
-              {item.label}
-            </p>
-            <p className="text-2xl font-semibold mt-2">{item.value}</p>
-          </div>
-        ))}
+        {activeTab === 'overview' && (
+          <>
+            {/* KPI CARDS */}
+            {[
+              { label: 'Speakers', value: speakerCount },
+              { label: 'Duration', value: duration },
+              { label: 'Total Words', value: totalWords },
+              { label: 'Avg WPM', value: avgWPM },
+            ].map((item, i) => (
+              <div
+                key={i}
+                className="col-span-12 sm:col-span-6 lg:col-span-3 bg-white border border-gray-200 rounded-xl p-6 shadow-sm"
+              >
+                <p className="text-sm text-gray-500 uppercase tracking-wide">{item.label}</p>
+                <p className="text-2xl font-semibold mt-2">{item.value}</p>
+              </div>
+            ))}
 
-        {/* EMOTION PIE */}
-        <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-          <h3 className="text-base font-medium mb-6">Emotion Distribution</h3>
-          {pieData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="value"
-                  nameKey="name"
-                  outerRadius={110}
-                  isAnimationActive={!isGeneratingPdf}
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
+            <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <h3 className="text-base font-medium mb-6">Emotion Distribution</h3>
+              {pieData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      dataKey="value"
+                      nameKey="name"
+                      outerRadius={110}
+                      isAnimationActive={!isGeneratingPdf}
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-gray-400 text-sm">No emotion data available.</p>
+              )}
+            </div>
+
+            <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <h3 className="text-base font-medium mb-6">Speaker Activity (Speaking Time)</h3>
+              {barData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={barData}>
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#2563eb" radius={[4, 4, 0, 0]} isAnimationActive={!isGeneratingPdf} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-gray-400 text-sm">No speaker metrics available.</p>
+              )}
+            </div>
+
+            <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <h3 className="text-base font-medium mb-6">Topics</h3>
+              {results.topics?.keywords?.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {results.topics.keywords.map((keyword, index) => (
+                    <span key={index} className="px-3 py-1 bg-gray-100 text-sm rounded-full border">
+                      {keyword}
+                    </span>
                   ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="text-gray-400 text-sm">
-              No emotion data available.
-            </p>
-          )}
-        </div>
-
-        {/* SPEAKER ACTIVITY BAR */}
-        <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-          <h3 className="text-base font-medium mb-6">
-            Speaker Activity (Speaking Time)
-          </h3>
-          {barData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={barData}>
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#2563eb" radius={[4, 4, 0, 0]} isAnimationActive={!isGeneratingPdf}/>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <p className="text-gray-400 text-sm">
-              No speaker metrics available.
-            </p>
-          )}
-        </div>
-
-        {/* TOPICS */}
-        <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-          <h3 className="text-base font-medium mb-6">Topics</h3>
-          {results.topics?.keywords?.length ? (
-            <div className="flex flex-wrap gap-2">
-              {results.topics.keywords.map((keyword, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 bg-gray-100 text-sm rounded-full border"
-                >
-                  {keyword}
-                </span>
-              ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">No topic data available.</p>
+              )}
             </div>
-          ) : (
-            <p className="text-gray-400 text-sm">
-              No topic data available.
-            </p>
-          )}
-        </div>
 
-        {/* POLITICAL ALIGNMENT */}
-        <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-          <h3 className="text-base font-medium mb-6">Political Alignment</h3>
-          {politicalSpeakers.length > 0 ? (
-            <div className="space-y-8">
-              {politicalSpeakers.map(([speaker, data], index) => {
-                const econ = data.two_dimensional?.economic;
-                const social = data.two_dimensional?.social;
-                const ideology = data.one_dimensional?.top_label;
+            <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <h3 className="text-base font-medium mb-6">Political Alignment</h3>
+              {politicalSpeakers.length > 0 ? (
+                <div className="space-y-8">
+                  {politicalSpeakers.map(([speaker, data], index) => {
+                    const econ = data.two_dimensional?.economic;
+                    const social = data.two_dimensional?.social;
+                    const ideology = data.one_dimensional?.top_label;
 
-                return (
-                  <div key={index} className="border-b pb-6 last:border-none">
-                    <div className="flex items-center mb-4">
-                      <h4 className="text-lg font-semibold">{speaker}</h4>
-                      {ideology && (
-                        <span className="ml-4 px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
-                          {ideology}
-                        </span>
-                      )}
-                    </div>
+                    return (
+                      <div key={index} className="border-b pb-6 last:border-none">
+                        <div className="flex items-center mb-4">
+                          <h4 className="text-lg font-semibold">{speaker}</h4>
+                          {ideology && (
+                            <span className="ml-4 px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
+                              {ideology}
+                            </span>
+                          )}
+                        </div>
 
-                    {/* ECONOMIC AXIS */}
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-500 mb-2">
-                        Economic Axis
-                      </p>
-                      <div className="w-full bg-gray-200 h-3 rounded-full">
-                        <div 
-                          className={`h-3 rounded-full ${
-                            econ?.axis >= 0 ? 'bg-red-500' : 'bg-green-500'
-                          }`}
-                          style={{ width: `${Math.abs(social?.axis || 0) * 50}%` }}
-                        />
+                        <div className="mb-4">
+                          <p className="text-sm text-gray-500 mb-2">Economic Axis</p>
+                          <div className="w-full bg-gray-200 h-3 rounded-full">
+                            <div
+                              className={`h-3 rounded-full ${econ?.axis >= 0 ? 'bg-red-500' : 'bg-green-500'}`}
+                              style={{ width: `${Math.abs(social?.axis || 0) * 50}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {econ?.axis < 0 ? 'Progressive' : econ?.axis > 0 ? 'Conservative' : 'Neutral'}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-sm text-gray-500 mb-2">Social Axis</p>
+                          <div className="relative w-full bg-gray-200 h-3 rounded-full overflow-hidden">
+                            <div
+                              className={`absolute top-0 h-3 ${social?.axis >= 0 ? 'bg-red-500' : 'bg-blue-500'}`}
+                              style={{
+                                width: `${Math.min(Math.max(Math.abs(social?.axis || 0) * 100, 0), 100)}%`,
+                                [social?.axis < 0 ? 'left' : 'right']: '50%',
+                              }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {social?.axis < 0 ? 'Liberal' : social?.axis > 0 ? 'Conservative' : 'Neutral'}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {econ?.axis < 0
-                          ? 'Progressive'
-                          : econ?.axis > 0
-                          ? 'Conservative'
-                          : 'Neutral'}
-                      </p>
-                    </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">No political alignment data available.</p>
+              )}
+            </div>
 
-                    {/* SOCIAL AXIS */}
-                    <div>
-                      <p className="text-sm text-gray-500 mb-2">
-                        Social Axis
-                      </p>
-                      <div className="relative w-full bg-gray-200 h-3 rounded-full overflow-hidden">
-                        <div
-                          className={`absolute top-0 h-3 ${
-                            social?.axis >= 0 ? 'bg-red-500' : 'bg-blue-500'
-                          }`}
-                          style={{
-                            width: `${Math.min(Math.max(Math.abs(social?.axis || 0) * 100, 0), 100)}%`,
-                            [social?.axis < 0 ? 'left' : 'right']: '50%',
-                          }}
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {social?.axis < 0
-                          ? 'Liberal'
-                          : social?.axis > 0
-                          ? 'Conservative'
-                          : 'Neutral'}
-                      </p>
+            <div className="col-span-12">
+              <SpeakerAnalysis results={results} />
+            </div>
+          </>
+        )}
+
+        {activeTab === 'transcript' && (
+          <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h3 className="text-base font-medium mb-4">Transcript</h3>
+            {transcriptTurns.length > 0 ? (
+              <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+                {transcriptTurns.map((turn, index) => (
+                  <div key={`${turn.speaker}-${turn.start}-${index}`} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-gray-800">{turn.speaker}</span>
+                      <span className="text-xs text-gray-500">{Math.round(turn.start || 0)}s - {Math.round(turn.end || 0)}s</span>
                     </div>
+                    <p className="text-sm text-gray-700">{turn.text}</p>
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-gray-400 text-sm">
-              No political alignment data available.
-            </p>
-          )}
-        </div>
-
-          {/* ENHANCED SPEAKER ANALYSIS */}
-          <div className="col-span-12">
-            <SpeakerAnalysis results={results} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-400 text-sm">No transcript data available.</p>
+            )}
           </div>
+        )}
+
+        {activeTab !== 'overview' && activeTab !== 'transcript' && (
+          <>
+            {(() => {
+              const speakerIndex = speakers.indexOf(activeTab);
+              const speakerColor = getSpeakerTabColor(speakerIndex);
+              return (
+                <div 
+                  className="col-span-12 bg-white rounded-xl p-6 shadow-sm"
+                  style={{
+                    border: `3px solid ${speakerColor.border}`,
+                  }}
+                >
+                  <h3 className="text-base font-medium mb-4">{activeTab.replace('_', ' ')} Summary</h3>
+                  {selectedSpeakerMetrics ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="border border-gray-200 rounded-lg p-4">
+                        <p className="text-xs text-gray-500">Speaking Time</p>
+                        <p className="text-lg font-semibold">{Math.round(selectedSpeakerMetrics.speaking_time_seconds || 0)}s</p>
+                      </div>
+                      <div className="border border-gray-200 rounded-lg p-4">
+                        <p className="text-xs text-gray-500">Total Words</p>
+                        <p className="text-lg font-semibold">{selectedSpeakerMetrics.total_words || 0}</p>
+                      </div>
+                      <div className="border border-gray-200 rounded-lg p-4">
+                        <p className="text-xs text-gray-500">Words / Min</p>
+                        <p className="text-lg font-semibold">{Math.round(selectedSpeakerMetrics.words_per_minute || 0)}</p>
+                      </div>
+                      <div className="border border-gray-200 rounded-lg p-4">
+                        <p className="text-xs text-gray-500">Turns</p>
+                        <p className="text-lg font-semibold">{selectedSpeakerMetrics.num_turns || 0}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 text-sm">No speaker metrics available.</p>
+                  )}
+                </div>
+              );
+            })()}
+
+            <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <h3 className="text-base font-medium mb-4">Sentiment</h3>
+              {selectedSentiment?.overall_sentiment ? (
+                <div className="space-y-2 text-sm">
+                  <p>Positive: {Math.round((selectedSentiment.overall_sentiment.positive || 0) * 100)}%</p>
+                  <p>Negative: {Math.round((selectedSentiment.overall_sentiment.negative || 0) * 100)}%</p>
+                  <p>Neutral: {Math.round((selectedSentiment.overall_sentiment.neutral || 0) * 100)}%</p>
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">No sentiment data available.</p>
+              )}
+            </div>
+
+            <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <h3 className="text-base font-medium mb-4">Transcript Turns</h3>
+              {selectedSpeakerTurns.length > 0 ? (
+                <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                  {selectedSpeakerTurns.map((turn, index) => (
+                    <div key={`${activeTab}-${turn.start}-${index}`} className="border border-gray-200 rounded-md p-3">
+                      <p className="text-xs text-gray-500 mb-1">{Math.round(turn.start || 0)}s - {Math.round(turn.end || 0)}s</p>
+                      <p className="text-sm text-gray-700">{turn.text}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">No turns found for this speaker.</p>
+              )}
+            </div>
+          </>
+        )}
         </div>
       </div>
       <div
