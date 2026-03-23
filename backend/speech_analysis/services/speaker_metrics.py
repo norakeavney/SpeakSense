@@ -65,6 +65,16 @@ def calculate_speaker_metrics(transcription_result, diarization_result):
         if speaker_turns:
             sentiment_analysis[speaker] = calculate_sentiment_per_speaker(speaker_turns)
     
+    # Calculate bias analysis
+    bias_analysis = calculate_bias_metrics(
+        speaker_data, 
+        questions_analysis, 
+        sentiment_analysis, 
+        leading_questions, 
+        interruptions, 
+        speakers
+    )
+    
     return {
         'speakers': speaker_data,
         'comparative': comparative,
@@ -73,6 +83,7 @@ def calculate_speaker_metrics(transcription_result, diarization_result):
         'sentiment_analysis': sentiment_analysis,
         'leading_questions': leading_questions,
         'interruptions': interruptions,
+        'bias_analysis': bias_analysis,
         'summary': _generate_summary(speaker_data, comparative)
     }
 
@@ -342,10 +353,17 @@ def analyse_questions_vs_statements(transcript):
             speakers_analysis[speaker]['question_ratio'] = round(
                 speakers_analysis[speaker]['questions'] / total, 3
             )
-            speakers_analysis[speaker]['likely_role'] = (
-                'interviewer' if speakers_analysis[speaker]['question_ratio'] > 0.3 
-                else 'interviewee'
-            )
+            # Role detection with better thresholds
+            # >60% questions = strong interviewer pattern
+            # 30-60% = mixed/moderator pattern  
+            # <30% = interviewee pattern
+            q_ratio = speakers_analysis[speaker]['question_ratio']
+            if q_ratio >= 0.60:
+                speakers_analysis[speaker]['likely_role'] = 'interviewer'
+            elif q_ratio >= 0.30:
+                speakers_analysis[speaker]['likely_role'] = 'moderator'
+            else:
+                speakers_analysis[speaker]['likely_role'] = 'interviewee'
     
     return speakers_analysis
 
@@ -842,6 +860,192 @@ def analyze_topic_sentiment(transcript, topics_list=None):
                     del data['compounds']
     
     return sentiment_per_topic
+
+
+def calculate_bias_metrics(speaker_data, questions_analysis, sentiment_analysis, leading_questions, interruptions, speakers_list):
+    """
+    Calculate comprehensive bias metrics across all speakers.
+    Identifies moderator, fairness indicators, and bias scores.
+    
+    Args:
+        speaker_data: Dict of speaker metrics
+        questions_analysis: Dict of questions/statements per speaker
+        sentiment_analysis: Dict of sentiment per speaker
+        leading_questions: Dict of leading questions per speaker
+        interruptions: Dict of interruption data
+        speakers_list: List of speaker names
+    
+    Returns:
+        Dict with bias analysis including moderator profile and fairness metrics
+    """
+    if not speakers_list or len(speakers_list) < 2:
+        return {'error': 'Need at least 2 speakers for bias analysis'}
+    
+    # Identify moderator (most questions, least speaking time)
+    moderator = None
+    moderator_score = -1
+    
+    for speaker in speakers_list:
+        q_ratio = questions_analysis.get(speaker, {}).get('question_ratio', 0)
+        speaking_time = speaker_data.get(speaker, {}).get('speaking_time_seconds', float('inf'))
+        
+        # Score: high question ratio + low speaking time = likely moderator
+        mod_score = (q_ratio * 100) - (speaking_time / 10)
+        
+        if mod_score > moderator_score:
+            moderator_score = mod_score
+            moderator = speaker
+    
+    # Separate candidates from moderator
+    candidates = [s for s in speakers_list if s != moderator]
+    
+    # Build candidate fairness analysis
+    candidate_analysis = {}
+    
+    for candidate in candidates:
+        cand_data = {
+            'speaker': candidate,
+            'role': 'candidate',
+            'speaking_time': speaker_data.get(candidate, {}).get('speaking_time_seconds', 0),
+            'words': speaker_data.get(candidate, {}).get('total_words', 0),
+            'turns': speaker_data.get(candidate, {}).get('num_turns', 0),
+            'questions_asked': questions_analysis.get(candidate, {}).get('questions', 0),
+            'question_ratio': questions_analysis.get(candidate, {}).get('question_ratio', 0),
+        }
+        
+        # Sentiment received (indicator of bias toward candidate)
+        sentiment_data = sentiment_analysis.get(candidate, {}).get('overall_sentiment', {})
+        if isinstance(sentiment_data, dict):
+            cand_data['sentiment_score'] = sentiment_data.get('compound', 0)
+            cand_data['sentiment_label'] = sentiment_analysis.get(candidate, {}).get('sentiment_label', 'neutral')
+        else:
+            cand_data['sentiment_score'] = sentiment_data.get('polarity', 0) if isinstance(sentiment_data, dict) else 0
+            cand_data['sentiment_label'] = 'neutral'
+        
+        # Leading questions directed at this candidate
+        lq_data = leading_questions.get(moderator if moderator else candidates[0], {})
+        cand_data['leading_questions_toward_candidate'] = lq_data.get('leading_questions', 0)
+        
+        # Interruptions made by candidate
+        int_stats = interruptions.get('speaker_stats', {}).get(candidate, {})
+        cand_data['interruptions_made'] = int_stats.get('interruptions_made', 0)
+        cand_data['interrupted_count'] = int_stats.get('interrupted_by_others', 0)
+        cand_data['dominance_score'] = int_stats.get('dominance_score', 0)
+        
+        candidate_analysis[candidate] = cand_data
+    
+    # Calculate fairness metrics
+    speaking_times = [cand_data['speaking_time'] for cand_data in candidate_analysis.values()]
+    
+    if speaking_times and sum(speaking_times) > 0:
+        time_distribution = {
+            speaker: round((candidate_analysis[speaker]['speaking_time'] / sum(speaking_times)) * 100, 1)
+            for speaker in candidate_analysis
+        }
+    else:
+        time_distribution = {speaker: 0 for speaker in candidate_analysis}
+    
+    # Calculate imbalance score (0 = fair, 1 = completely unfair)
+    if speaking_times:
+        max_time = max(speaking_times)
+        min_time = min(speaking_times)
+        time_variance = (max_time - min_time) / (max_time + min_time) if (max_time + min_time) > 0 else 0
+    else:
+        time_variance = 0
+    
+    # Calculate sentiment bias (how consistently positive/negative moderator was)
+    moderator_sentiment = sentiment_analysis.get(moderator, {}).get('overall_sentiment', {})
+    if isinstance(moderator_sentiment, dict):
+        moderator_sentiment_score = moderator_sentiment.get('compound', 0)
+    else:
+        moderator_sentiment_score = moderator_sentiment.get('polarity', 0) if isinstance(moderator_sentiment, dict) else 0
+    
+    # Calculate question distribution fairness
+    questions_per_candidate = {
+        speaker: questions_analysis.get(speaker, {}).get('questions', 0)
+        for speaker in candidate_analysis
+    }
+    
+    if questions_per_candidate and sum(questions_per_candidate.values()) > 0:
+        total_q = sum(questions_per_candidate.values())
+        question_distribution = {
+            speaker: round((q / total_q) * 100, 1) if total_q > 0 else 0
+            for speaker, q in questions_per_candidate.items()
+        }
+    else:
+        question_distribution = {}
+    
+    # Calculate overall bias score (0-100, higher = more biased)
+    bias_factors = []
+    
+    # Factor 1: Unequal speaking time (0-30 points)
+    if len(speaking_times) >= 2:
+        bias_factors.append(min(time_variance * 30, 30))
+    
+    # Factor 2: Unequal questions asked (0-30 points)
+    if len(question_distribution) >= 2:
+        questions_values = list(question_distribution.values())
+        question_variance = (max(questions_values) - min(questions_values)) / 100 if len(questions_values) >= 2 else 0
+        bias_factors.append(min(question_variance * 30, 30))
+    
+    # Factor 3: Moderator sentiment bias (0-20 points)
+    moderator_bias = abs(moderator_sentiment_score) * 20
+    bias_factors.append(min(moderator_bias, 20))
+    
+    # Factor 4: Leading questions (0-20 points)
+    lq_count = leading_questions.get(moderator if moderator else '', {}).get('leading_questions', 0)
+    lq_ratio = leading_questions.get(moderator if moderator else '', {}).get('bias_score', 0)
+    bias_factors.append(min(lq_ratio * 20, 20))
+    
+    overall_bias_score = round(sum(bias_factors) / len(bias_factors) if bias_factors else 0, 1)
+    
+    # Interpret bias level
+    if overall_bias_score >= 70:
+        bias_level = 'SEVERE'
+        bias_description = 'Significant bias detected. Moderator severely favored one or more candidates.'
+    elif overall_bias_score >= 50:
+        bias_level = 'HIGH'
+        bias_description = 'High bias detected. Noticeable favoritism toward certain candidates.'
+    elif overall_bias_score >= 30:
+        bias_level = 'MODERATE'
+        bias_description = 'Moderate bias detected. Some fairness issues present.'
+    elif overall_bias_score >= 15:
+        bias_level = 'LOW'
+        bias_description = 'Low bias detected. Generally fair but minor inconsistencies.'
+    else:
+        bias_level = 'MINIMAL'
+        bias_description = 'Minimal bias detected. Conversation appears well-balanced and fair.'
+    
+    return {
+        'overall_bias_score': overall_bias_score,
+        'bias_level': bias_level,
+        'bias_description': bias_description,
+        'bias_factors': {
+            'speaking_time_variance': round(time_variance, 3),
+            'question_distribution_variance': round(question_variance if 'question_variance' in locals() else 0, 3),
+            'moderator_sentiment_bias': round(abs(moderator_sentiment_score), 3),
+            'leading_questions_ratio': round(lq_ratio, 3)
+        },
+        'moderator': {
+            'speaker': moderator,
+            'role': 'moderator',
+            'speaking_time': speaker_data.get(moderator, {}).get('speaking_time_seconds', 0) if moderator else 0,
+            'sentiment_score': moderator_sentiment_score,
+            'sentiment_label': sentiment_analysis.get(moderator, {}).get('sentiment_label', 'neutral') if moderator else 'neutral',
+            'questions_asked': questions_analysis.get(moderator, {}).get('questions', 0) if moderator else 0,
+            'leading_questions_count': lq_count,
+            'leading_questions_ratio': lq_ratio
+        },
+        'candidates': candidate_analysis,
+        'time_distribution': time_distribution,
+        'question_distribution': question_distribution,
+        'fairness_metrics': {
+            'time_balance': round(1 - time_variance, 3),  # Higher = more balanced
+            'time_most_given_to': max(time_distribution, key=time_distribution.get) if time_distribution else None,
+            'time_least_given_to': min(time_distribution, key=time_distribution.get) if time_distribution else None,
+            'time_spread_percent': round((max(time_distribution.values()) - min(time_distribution.values())) if time_distribution else 0, 1),
+        }
+    }
 
 
 # TODO: def analyse_pauses(transcript, audio_path):

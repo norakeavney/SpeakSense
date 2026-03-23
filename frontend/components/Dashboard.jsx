@@ -16,6 +16,7 @@ import SpeakerAnalysis from './SpeakerAnalysis';
 import WordCloud from './WordCloud';
 import TopicSentimentAnalysis from './TopicSentimentAnalysis';
 import PerSpeakerTopics from './PerSpeakerTopics';
+import BiasDetection from './BiasDetection';
 
 const COLORS = [
   '#2563eb',
@@ -109,6 +110,11 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
     activeTab !== 'overview' && activeTab !== 'transcript'
       ? results?.speaker_metrics?.sentiment_analysis?.[activeTab]
       : null;
+  const selectedSpeakerEmotions =
+    activeTab !== 'overview' && activeTab !== 'transcript'
+      ? results?.emotion?.speakers?.[activeTab]
+      : null;
+  const questionsAnalysis = results?.speaker_metrics?.questions_analysis || {};
 
   // DOMINANCE CALCULATION
   const totalSpeakingTime = barData.reduce((sum, s) => sum + s.value, 0);
@@ -392,6 +398,13 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
               )}
             </div>
 
+            {/* Bias Detection Box */}
+            {results.speaker_metrics?.bias_analysis && (
+              <div className="col-span-12">
+                <BiasDetection biasAnalysis={results.speaker_metrics.bias_analysis} />
+              </div>
+            )}
+
             <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
               <h3 className="text-base font-medium mb-6">Topics Word Cloud</h3>
               {results.topics?.keywords?.length ? (
@@ -557,18 +570,128 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
               );
             })()}
 
-            <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-              <h3 className="text-base font-medium mb-4">Sentiment</h3>
-              {selectedSentiment?.overall_sentiment ? (
-                <div className="space-y-2 text-sm">
-                  <p>Positive: {Math.round((selectedSentiment.overall_sentiment.positive || 0) * 100)}%</p>
-                  <p>Negative: {Math.round((selectedSentiment.overall_sentiment.negative || 0) * 100)}%</p>
-                  <p>Neutral: {Math.round((selectedSentiment.overall_sentiment.neutral || 0) * 100)}%</p>
-                </div>
-              ) : (
-                <p className="text-gray-400 text-sm">No sentiment data available.</p>
-              )}
-            </div>
+            {/* Sentiment Pie Chart */}
+            {selectedSentiment?.overall_sentiment && (
+              <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                <h3 className="text-base font-medium mb-4">Sentiment</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Positive', value: Math.round((selectedSentiment.overall_sentiment.positive || 0) * 100), color: '#10b981' },
+                        { name: 'Negative', value: Math.round((selectedSentiment.overall_sentiment.negative || 0) * 100), color: '#ef4444' },
+                        { name: 'Neutral', value: Math.round((selectedSentiment.overall_sentiment.neutral || 0) * 100), color: '#6b7280' },
+                      ].filter(d => d.value > 0)}
+                      dataKey="value"
+                      nameKey="name"
+                      outerRadius={90}
+                      isAnimationActive={!isGeneratingPdf}
+                    >
+                      {[
+                        { name: 'Positive', value: 0, color: '#10b981' },
+                        { name: 'Negative', value: 0, color: '#ef4444' },
+                        { name: 'Neutral', value: 0, color: '#6b7280' },
+                      ].map((entry, index) => (
+                        <Cell key={`sentiment-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Emotions Pie Chart */}
+            {selectedSpeakerEmotions && Object.keys(selectedSpeakerEmotions).length > 0 && (
+              <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                <h3 className="text-base font-medium mb-4">Emotions</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={Object.entries(selectedSpeakerEmotions)
+                        .map(([emotion, value]) => ({
+                          name: emotion.charAt(0).toUpperCase() + emotion.slice(1),
+                          value: Math.round(Number(value) * 100),
+                        }))
+                        .filter(d => d.value > 0)}
+                      dataKey="value"
+                      nameKey="name"
+                      outerRadius={90}
+                      isAnimationActive={!isGeneratingPdf}
+                    >
+                      {['#ef4444', '#8b5cf6', '#06b6d4', '#fbbf24', '#6b7280', '#3b82f6', '#ec4899'].map((color, idx) => (
+                        <Cell key={`emotion-${idx}`} fill={color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Per-Speaker Topics */}
+            {results?.topics?.per_speaker_topics?.[activeTab]?.keywords?.length > 0 && (
+              <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                <h3 className="text-base font-medium mb-4">Topics & Keywords</h3>
+                {results.topics.per_speaker_topics[activeTab].topics?.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm font-medium text-gray-600 mb-2">Main Topics</p>
+                    <div className="flex flex-wrap gap-2">
+                      {results.topics.per_speaker_topics[activeTab].topics.map((topic, idx) => (
+                        <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <p className="text-sm font-medium text-gray-600 mb-3">Keywords</p>
+                <WordCloud 
+                  words={results.topics.per_speaker_topics[activeTab].keywords.map((keyword) => ({
+                    word: keyword,
+                    score: results.topics.per_speaker_topics[activeTab].scores?.[keyword] || 0.5
+                  }))}
+                  height={280}
+                  maxWords={30}
+                />
+              </div>
+            )}
+
+            {/* Questions vs Statements */}
+            {questionsAnalysis[activeTab] && (
+              <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                <h3 className="text-base font-medium mb-4">Communication Style</h3>
+                {questionsAnalysis[activeTab].questions + questionsAnalysis[activeTab].statements > 0 ? (
+                  <>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart
+                        data={[
+                          { name: 'Questions', value: questionsAnalysis[activeTab].questions, fill: '#3b82f6' },
+                          { name: 'Statements', value: questionsAnalysis[activeTab].statements, fill: '#10b981' },
+                        ]}
+                      >
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip />
+                        <Bar dataKey="value" isAnimationActive={!isGeneratingPdf} radius={[4, 4, 0, 0]}>
+                          {[
+                            { fill: '#3b82f6' },
+                            { fill: '#10b981' },
+                          ].map((entry, idx) => (
+                            <Cell key={`comm-${idx}`} fill={entry.fill} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div className="mt-3 text-xs text-gray-600">
+                      <p>Role: <span className="font-semibold">{questionsAnalysis[activeTab].likely_role || 'Unknown'}</span></p>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-gray-400 text-sm">No communication data available.</p>
+                )}
+              </div>
+            )}
 
             <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
               <h3 className="text-base font-medium mb-4">Transcript Turns</h3>
