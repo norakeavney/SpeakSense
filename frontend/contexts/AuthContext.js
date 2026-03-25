@@ -22,6 +22,26 @@ export const AuthProvider = ({ children }) => {
     checkAuthStatus();
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    try {
+      const rawSettings = localStorage.getItem('speaksense_settings');
+      if (!rawSettings) {
+        document.documentElement.classList.remove('dark');
+        return;
+      }
+
+      const parsedSettings = JSON.parse(rawSettings);
+      document.documentElement.classList.toggle('dark', parsedSettings?.theme === 'dark');
+    } catch (error) {
+      console.error('Failed to load theme settings:', error);
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
   const checkAuthStatus = async () => {
     try {
       if (isAuthenticated()) {

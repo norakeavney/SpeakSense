@@ -8,6 +8,7 @@ import AudioUpload from '../components/AudioUpload';
 import AnalysisProgress from '../components/AnalysisProgress';
 import Dashboard from '../components/Dashboard';
 import UserReports from '../components/UserReports';
+import Settings from '../components/Settings';
 
 export default function HomePage() {
   const { isLoggedIn, loading } = useAuth();
@@ -100,10 +101,7 @@ export default function HomePage() {
       )}
 
       {currentPage === 'settings' && (
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Settings</h2>
-          <p className="text-gray-600">Settings panel coming soon...</p>
-        </div>
+        <Settings />
       )}
     </AuthenticatedLayout>
   );
