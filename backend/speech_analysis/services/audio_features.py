@@ -10,23 +10,23 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def extract_audio_features(audio_path, speaker_segments):
+def extract_audio_features(file_ref, speaker_segments):
     """
     Extract audio features for each speaker from their speech segments.
     
     Args:
-        audio_path: Path to the audio file
+        file_ref: Path to the audio file
         speaker_segments: Dict with speaker IDs as keys and list of segment dicts as values
                          Each segment should have 'start' and 'end' times in seconds
     
     Returns:
         Dict with speaker IDs as keys and their audio features as values
     """
-    logger.info(f"Extracting audio features from: {audio_path}")
+    logger.info(f"Extracting audio features from: {file_ref}")
     
     try:
         # Load the full audio file
-        y, sr = librosa.load(audio_path, sr=None)
+        y, sr = librosa.load(file_ref, sr=None)
         logger.info(f"Loaded audio: sample_rate={sr}, duration={len(y)/sr:.2f}s")
         
         speaker_features = {}

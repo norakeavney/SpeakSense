@@ -588,12 +588,12 @@ def get_audio_emotion_model():
     return _audio_emotion_model, _audio_emotion_processor
 
 
-def analyse_audio_emotions(audio_path: str, transcript_data: List[Dict] = None) -> Dict[str, Any]:
+def analyse_audio_emotions(file_ref: str, transcript_data: List[Dict] = None) -> Dict[str, Any]:
     """
     analyse emotions from audio file using Wav2Vec2.
     
     Args:
-        audio_path: Path to audio file
+        file_ref: Path to audio file
         transcript_data: Optional transcript with timestamps for alignment
     
     Returns:
@@ -605,10 +605,10 @@ def analyse_audio_emotions(audio_path: str, transcript_data: List[Dict] = None) 
             - model_used: 'wav2vec2' or 'failed'
             - avg_confidence: average confidence (for fusion)
     """
-    logger.info(f"Starting audio emotion analysis for: {audio_path}")
+    logger.info(f"Starting audio emotion analysis for: {file_ref}")
 
     # FIX: Handle missing audio path gracefully
-    if not audio_path:
+    if not file_ref:
         logger.warning("No audio path provided")
     return {
         'overall_sentiment': 'neutral',
@@ -635,7 +635,7 @@ def analyse_audio_emotions(audio_path: str, transcript_data: List[Dict] = None) 
     
     try:
         # Load audio
-        waveform, sample_rate = torchaudio.load(audio_path)
+        waveform, sample_rate = torchaudio.load(file_ref)
         
         # Resample to 16kHz if needed (Wav2Vec2 expects 16kHz)
         if sample_rate != 16000:

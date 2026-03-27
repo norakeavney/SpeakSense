@@ -9,12 +9,12 @@ from pathlib import Path
 
 
 
-def analyse_audio(audio_path, include_diarization=True):
+def analyse_audio(file_ref, include_diarization=True):
     """
     Transcribe with Whisper, diarize with Pyannote
     """
-    if not Path(audio_path).exists():
-        raise FileNotFoundError(f"Audio not found: {audio_path}")
+    if not Path(file_ref).exists():
+        raise FileNotFoundError(f"Audio not found: {file_ref}")
     
     print("\n" + "="*70)
     print("🎤 SPEECH ANALYSIS PIPELINE")
@@ -27,7 +27,7 @@ def analyse_audio(audio_path, include_diarization=True):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     whisper_model = whisper.load_model("base", device=device)
     
-    result = whisper_model.transcribe(audio_path, word_timestamps=True)
+    result = whisper_model.transcribe(file_ref, word_timestamps=True)
     
     text = result['text'].strip()
     segments = result.get('segments', [])
@@ -69,7 +69,7 @@ def analyse_audio(audio_path, include_diarization=True):
         )
         
         # Run diarization
-        diarization = diarization_pipeline(audio_path)
+        diarization = diarization_pipeline(file_ref)
         
         # Convert to list of speaker segments
         speaker_segments = []

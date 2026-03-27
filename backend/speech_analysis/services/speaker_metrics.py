@@ -1048,7 +1048,7 @@ def calculate_bias_metrics(speaker_data, questions_analysis, sentiment_analysis,
     }
 
 
-# TODO: def analyse_pauses(transcript, audio_path):
+# TODO: def analyse_pauses(transcript, file_ref):
 #     """analyse silence/pause patterns between turns"""
 #     pass
 
@@ -1056,6 +1056,6 @@ def calculate_bias_metrics(speaker_data, questions_analysis, sentiment_analysis,
 #     """Detect emotions using DistilBERT model"""
 #     pass
 
-# TODO: def analyse_loudness_per_speaker(audio_path, transcript):
+# TODO: def analyse_loudness_per_speaker(file_ref, transcript):
 #     """analyse audio loudness and tone per speaker"""
 #     pass

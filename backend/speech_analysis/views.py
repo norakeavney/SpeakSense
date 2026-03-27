@@ -1,6 +1,8 @@
 """
 API Views for SpeakSense
 """
+from unittest import result
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -16,7 +18,7 @@ from io import BytesIO
 from pathlib import Path
 from django.conf import settings
 
-from speech_analysis.workers.real_processor import start_real_processing
+from speech_analysis.workers.worker_client import dispatch_to_worker
 from .serializers import AudioUploadSerializer
 from speech_analysis.db.mongodb import mongodb
 from speech_analysis.db.analysis_jobs import AnalysisJobManager
@@ -243,7 +245,7 @@ def upload_audio(request):
         'title': title,
         'original_filename': original_name,
         'saved_filename': file_path.name,
-        'file_path': str(file_path),
+        'file_ref': str(file_path),
         'file_size': file_path.stat().st_size,
         'file_extension': file_extension,
         'uploaded_at': datetime.now(timezone.utc),
@@ -259,12 +261,12 @@ def upload_audio(request):
     # Create analysis job
     job_id = AnalysisJobManager.create_job(
         audio_id=str(result.inserted_id),
-        audio_path=str(file_path),
-        user_id=request.user.id  # Pass user ID to job
+        file_ref=str(file_path),
+        user_id=request.user.id
     )
     
-    # Start background processing
-    start_real_processing(job_id, str(file_path))
+    # Dispatch job to worker
+    dispatch_to_worker(job_id, str(file_path))
     
     # Return success response
     return Response({
@@ -293,7 +295,7 @@ def analysis_status(request, job_id):
     try:
         # Fetch job from MongoDB
         job = AnalysisJobManager.get_job(job_id)
-        
+        print("JOB FOUND:", job)
         if not job:
             return Response({
                 'error': 'Job not found',
@@ -707,7 +709,7 @@ def delete_user_report(request, job_id):
             audio_info = audio_collection.find_one({'_id': ObjectId(job['audio_id'])})
             if audio_info:
                 # Delete physical file
-                audio_file_path = Path(audio_info.get('file_path', ''))
+                audio_file_path = Path(audio_info.get('file_ref', ''))
                 if audio_file_path.exists():
                     audio_file_path.unlink()
                 

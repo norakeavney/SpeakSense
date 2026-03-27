@@ -1,4 +1,7 @@
-import threading
+"""
+This file contains the core ML processing pipeline for a job.
+It's designed to be portable and can be run in a separate worker process.
+"""
 import time
 import os
 from speech_analysis.db.analysis_jobs import AnalysisJobManager
@@ -27,18 +30,11 @@ from speech_analysis.services.political_analysis import (
     analyse_speaker_politics,
 )
 
-def start_real_processing(job_id, file_ref):
-    """Start background processing for a job."""
-    thread = threading.Thread(
-        target=_process_job,
-        args=(job_id, file_ref),
-        daemon=True
-    )
-    thread.start()
-    print(f"Real processing started for job {job_id}")
-
-def _process_job(job_id, file_ref):
-    """Background worker that processes the audio file."""
+def run_ml_pipeline(job_id, file_ref):
+    """
+    The core ML processing pipeline.
+    This function can be called by a background worker.
+    """
     
     try:
         print(f"\n{'='*60}")
