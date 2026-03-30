@@ -20,7 +20,7 @@ def dispatch_to_worker(job_id: str, file_path: str):
     try:
         payload = {
             "job_id": job_id,
-            "file_path": file_path
+            "file_ref": file_path
         }
         response = requests.post(GPU_WORKER_URL, json=payload, timeout=5) # 5 second timeout
 

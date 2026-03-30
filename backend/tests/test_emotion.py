@@ -3,7 +3,7 @@ Test script for emotion analysis with DistilBERT
 Run this to verify the emotion detection is working
 """
 
-from speech_analysis.services.emotion_analysis import analyse_emotions, generate_emotion_summary
+from gpu_worker.ml.emotion_analysis import analyse_emotions, generate_emotion_summary
 
 
 def test_emotion_analysis():

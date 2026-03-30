@@ -681,7 +681,7 @@ def extract_topics_per_speaker(transcript, topics_data=None):
     Returns:
         Dict with topic analysis per speaker
     """
-    from speech_analysis.services.topic_extraction import extract_topics
+    from gpu_worker.ml.topic_extraction import extract_topics
     
     if not transcript:
         return {}

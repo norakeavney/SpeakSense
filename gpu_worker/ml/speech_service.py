@@ -17,7 +17,7 @@ def analyse_audio(file_ref, include_diarization=True):
         raise FileNotFoundError(f"Audio not found: {file_ref}")
     
     print("\n" + "="*70)
-    print("🎤 SPEECH ANALYSIS PIPELINE")
+    print("SPEECH ANALYSIS PIPELINE")
     print("="*70)
     
     # ============================================================

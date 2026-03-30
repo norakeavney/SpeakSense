@@ -1,8 +1,7 @@
 from dotenv import load_dotenv
 
 load_dotenv()
-
-from speech_analysis.services.political_analysis import analyse_speaker_politics
+from gpu_worker.ml.political_analysis import analyse_speaker_politics
 
 
 fake_speakers = {

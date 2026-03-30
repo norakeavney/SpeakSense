@@ -5,7 +5,7 @@ It's designed to be portable and can be run in a separate worker process.
 import time
 import os
 from speech_analysis.db.analysis_jobs import AnalysisJobManager
-from speech_analysis.services.speech_service import analyse_audio  # One simple import!
+from gpu_worker.ml.speech_service import analyse_audio  # One simple import!
 from speech_analysis.services.speaker_metrics import (
     calculate_speaker_metrics, 
     analyse_questions_vs_statements, 
@@ -16,16 +16,16 @@ from speech_analysis.services.speaker_metrics import (
     extract_topics_per_speaker,
     analyze_topic_sentiment
 )
-from speech_analysis.services.emotion_analysis import (
+from gpu_worker.ml.emotion_analysis import (
     analyse_emotions, 
     generate_emotion_summary,
     analyse_audio_emotions,  # Audio emotion analysis
     fuse_text_and_audio_emotions  # Fusion
 )
 import librosa  
-from speech_analysis.services.topic_extraction import extract_topics
+from gpu_worker.ml.topic_extraction import extract_topics
 from speech_analysis.services.role_detection import detect_speaker_roles
-from speech_analysis.services.political_analysis import (
+from gpu_worker.ml.political_analysis import (
     build_speaker_texts_from_diarized_transcript,
     analyse_speaker_politics,
 )
