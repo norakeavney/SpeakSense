@@ -607,17 +607,16 @@ def analyse_audio_emotions(file_ref: str, transcript_data: List[Dict] = None) ->
     """
     logger.info(f"Starting audio emotion analysis for: {file_ref}")
 
-    # FIX: Handle missing audio path gracefully
     if not file_ref:
         logger.warning("No audio path provided")
-    return {
+        return {
         'overall_sentiment': 'neutral',
         'timeline': [],
         'emotion_distribution': {'neutral': 1.0},
         'model_used': 'none',
         'avg_confidence': 0.0,
         'error': 'No audio path provided'
-    }
+        }
 
     
     model, processor = get_audio_emotion_model()
