@@ -5,50 +5,6 @@ python-dotenv==1.0.1
 setuptools==69.5.1
 
 # -------------------------
-# Numerical / Scientific (PINNED for compatibility)
-# -------------------------
-numpy==1.26.4
-scipy==1.11.4
-pandas==2.1.4
-matplotlib==3.8.2
-
-# -------------------------
-# PyTorch (PINNED - 2.2.x for audio ML compatibility)
-# -------------------------
-torch==2.2.0
-torchaudio==2.2.0
-torchvision==0.17.0
-
-# -------------------------
-# Speech & Audio (PINNED)
-# -------------------------
-openai-whisper
-whisperx==3.1.1
-pyannote.audio==3.1.1
-librosa==0.10.1
-soundfile==0.12.1
-
-# -------------------------
-# ML / NLP Utilities
-# -------------------------
-transformers==4.38.2
-huggingface-hub>=0.20.0
-torchmetrics>=0.11.0
-pytorch-lightning>=2.0.0,<2.2.0
-einops>=0.7.0
-
-# -------------------------
-# Sentiment Analysis
-# -------------------------
-textblob>=0.17.0
-vaderSentiment>=3.3.0
-
-# -------------------------
-# OpenAI API
-# -------------------------
-openai>=1.0.0
-
-# -------------------------
 # Django Backend
 # -------------------------
 Django>=5.1.0,<6.0.0
@@ -57,19 +13,29 @@ django-cors-headers>=4.0.0
 python-decouple>=3.8
 drf-spectacular>=0.27.0
 djangorestframework-simplejwt>=5.3.0
+gunicorn>=21.0.0
+motor>=3.1.0  # Async MongoDB driver for Django
+
+# -------------------------
+# PDF Generation (for reports)
+# -------------------------
 reportlab>=4.2.0
 
 # -------------------------
-# MongoDB
+# Database
 # -------------------------
 pymongo>=4.0.0
-motor>=3.0.0
 
 # -------------------------
-# YouTube & MP4 Processing
+# Audio/Video Download & Conversion
 # -------------------------
+moviepy==1.0.3
+yt-dlp==2023.03.04
+ffmpeg-python==0.2.0
+librosa==0.10.1
+soundfile==0.12.1
 
-moviepy==1.0.3          # For processing MP4 and other video formats
-yt-dlp==2023.03.04       # For downloading YouTube videos
-python-decouple==3.8     # For managing environment variables in Django
-ffmpeg-python==0.2.0    # Python bindings for FFmpeg
+# -------------------------
+# HTTP
+# -------------------------
+requests>=2.31.0

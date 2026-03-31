@@ -4,6 +4,8 @@
 fastapi>=0.100.0
 uvicorn>=0.24.0
 python-dotenv==1.0.1
+requests>=2.31.0
+pydantic>=2.0.0
 
 # -------------------------
 # Database
@@ -41,8 +43,3 @@ huggingface-hub>=0.20.0
 # -------------------------
 textblob>=0.17.0
 vaderSentiment>=3.3.0
-
-# -------------------------
-# Optional: for better async support
-# -------------------------
-pydantic>=2.0.0

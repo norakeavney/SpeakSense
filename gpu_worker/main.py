@@ -121,16 +121,17 @@ def process_job(job_id: str, file_url: str) -> None:
     logger.info(f"[JOB {job_id}] Background task started")
     logger.info(f"[JOB {job_id}] File URL: {file_url}")
     
-    # Download audio file from Backend
-    file_ref = download_audio_file(job_id, file_url)
-    
-    if not file_ref:
-        error_msg = "Failed to download audio file from Backend"
-        logger.error(f"[JOB {job_id}] {error_msg}")
-        fail_job(job_id, error_msg)
-        return
-    
+    file_ref = None  # Initialize file_ref to None
     try:
+        # Download audio file from Backend
+        file_ref = download_audio_file(job_id, file_url)
+        
+        if not file_ref:
+            error_msg = "Failed to download audio file from Backend"
+            logger.error(f"[JOB {job_id}] {error_msg}")
+            fail_job(job_id, error_msg)
+            return
+
         # Validate file exists before processing
         if not Path(file_ref).exists():
             error_msg = f"Downloaded file not found: {file_ref}"
@@ -140,7 +141,6 @@ def process_job(job_id: str, file_url: str) -> None:
 
         logger.info(f"[JOB {job_id}] Processing started for file: {file_ref}")
 
-    try:
         # ============ STEP 1: TRANSCRIPTION & DIARIZATION ============
         logger.info(f"[JOB {job_id}] Starting speech pipeline")
         update_job(job_id, {
