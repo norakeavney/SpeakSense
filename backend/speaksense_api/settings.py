@@ -205,6 +205,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Local development
     "http://localhost:8000",  # Backend API
     "http://127.0.0.1:3000",  # Localhost alternative
+    "http://frontend:3000",  # Docker container name
+    "http://backend:8000",  # Docker container name
     "http://100.50.186.144:3000",  # EC2
     "http://100.50.186.144:8000",  # Backend API
     "https://staging.your-frontend-domain.com",  # Staging environment

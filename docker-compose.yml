@@ -12,13 +12,35 @@ services:
       - media_data:/app/media
     restart: unless-stopped
 
+  gpu_worker:
+    build: ./gpu_worker
+    container_name: ss-gpu-worker
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./gpu_worker/.env
+    environment:
+      # Override URLs for container-to-container communication
+      - BACKEND_URL=http://backend:8000/api
+    depends_on:
+      - backend
+    restart: unless-stopped
+    # Uncomment below if running on GPU EC2 (requires nvidia-docker)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
   frontend:
     build: ./frontend
     container_name: ss-frontend
     ports:
       - "3000:3000"
     environment:
-      - BACKEND_URL=http://backend:8000
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
     depends_on:
       - backend
     restart: unless-stopped
