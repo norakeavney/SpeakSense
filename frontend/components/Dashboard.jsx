@@ -27,6 +27,11 @@ const COLORS = [
   '#0ea5e9',
 ];
 
+const TAB_COLORS = {
+  overview: { bg: '#eef2ff', border: '#c7d2fe', text: '#4338ca' },
+  transcript: { bg: '#f0fdf4', border: '#bbf7d0', text: '#166534' },
+};
+
 const getSpeakerTabColor = (index) => {
   const speakerColors = [
     { bg: '#e8d5f2', border: '#b39ddb', text: '#6a1b9a' },

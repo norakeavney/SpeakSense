@@ -36,7 +36,7 @@ export default function AnalysisProgress({ jobId, onComplete }) {
     };
 
     pollStatus();
-    interval = setInterval(pollStatus, 2000);
+    interval = setInterval(pollStatus, 5000);
 
     return () => clearInterval(interval);
 
