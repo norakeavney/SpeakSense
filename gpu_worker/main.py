@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 import os
 import logging
 import traceback
+import requests
+import tempfile
 from pathlib import Path
 from typing import Any, Optional
 
@@ -43,7 +45,7 @@ jobs_collection = db["analysis_jobs"]
 
 class JobRequest(BaseModel):
     job_id: str
-    file_ref: str
+    file_url: str  # Changed from file_ref - now receives download URL from Backend
 
 
 def now_utc() -> datetime:
@@ -68,6 +70,41 @@ def fail_job(job_id: str, error: str, failed_step: Optional[str] = None) -> None
     update_job(job_id, updates)
 
 
+def download_audio_file(job_id: str, file_url: str) -> Optional[str]:
+    """
+    Download audio file from Backend to local temp directory.
+    
+    Args:
+        job_id: Job ID for logging
+        file_url: URL to download the audio file from
+        
+    Returns:
+        Local file path if successful, None if download failed
+    """
+    try:
+        logger.info(f"[JOB {job_id}] Downloading audio from: {file_url}")
+        
+        response = requests.get(file_url, timeout=300)  # 5 minute timeout for large files
+        
+        if response.status_code != 200:
+            logger.error(f"[JOB {job_id}] Download failed: HTTP {response.status_code}")
+            return None
+        
+        # Save to temp file
+        temp_dir = tempfile.gettempdir()
+        temp_file = Path(temp_dir) / f"speaksense_{job_id}.wav"
+        
+        with open(temp_file, 'wb') as f:
+            f.write(response.content)
+        
+        logger.info(f"[JOB {job_id}] Audio downloaded successfully: {temp_file} ({temp_file.stat().st_size} bytes)")
+        return str(temp_file)
+        
+    except Exception as e:
+        logger.error(f"[JOB {job_id}] Download failed: {str(e)}")
+        return None
+
+
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
     """Cleanup MongoDB connection on shutdown."""
@@ -75,21 +112,33 @@ async def shutdown_event() -> None:
     client.close()
 
 
-def process_job(job_id: str, file_ref: str) -> None:
+def process_job(job_id: str, file_url: str) -> None:
     """
     Process audio analysis job with all pipeline steps.
+    Downloads audio from Backend, processes it, then cleans up.
     Handles transcription, diarization, emotion, topics, and political analysis.
     """
-    logger.info(f"🚀 [JOB {job_id}] BACKGROUND TASK STARTED!")
-    logger.info(f"🚀 [JOB {job_id}] File: {file_ref}")
-    logger.info(f"[JOB {job_id}] Processing started for file: {file_ref}")
-
-    # Validate file exists before processing
-    if not Path(file_ref).exists():
-        error_msg = f"Audio file not found: {file_ref}"
+    logger.info(f"[JOB {job_id}] Background task started")
+    logger.info(f"[JOB {job_id}] File URL: {file_url}")
+    
+    # Download audio file from Backend
+    file_ref = download_audio_file(job_id, file_url)
+    
+    if not file_ref:
+        error_msg = "Failed to download audio file from Backend"
         logger.error(f"[JOB {job_id}] {error_msg}")
         fail_job(job_id, error_msg)
         return
+    
+    try:
+        # Validate file exists before processing
+        if not Path(file_ref).exists():
+            error_msg = f"Downloaded file not found: {file_ref}"
+            logger.error(f"[JOB {job_id}] {error_msg}")
+            fail_job(job_id, error_msg)
+            return
+
+        logger.info(f"[JOB {job_id}] Processing started for file: {file_ref}")
 
     try:
         # ============ STEP 1: TRANSCRIPTION & DIARIZATION ============
@@ -208,6 +257,15 @@ def process_job(job_id: str, file_ref: str) -> None:
         error_msg = f"Unexpected error during processing: {str(e)}"
         logger.error(f"[JOB {job_id}] {error_msg}", exc_info=True)
         fail_job(job_id, error_msg)
+    
+    finally:
+        # Clean up downloaded temp file
+        try:
+            if file_ref and Path(file_ref).exists():
+                Path(file_ref).unlink()
+                logger.info(f"[JOB {job_id}] Cleaned up temp file: {file_ref}")
+        except Exception as e:
+            logger.warning(f"[JOB {job_id}] Failed to clean up temp file: {str(e)}")
 
 
 @app.post("/process", status_code=status.HTTP_202_ACCEPTED)
@@ -216,9 +274,9 @@ def process(request: JobRequest, background_tasks: BackgroundTasks) -> dict[str,
     Queue an audio analysis job for processing.
     Returns immediately with job_id; processing happens in background.
     """
-    logger.info(f"🎬 JOB RECEIVED: {request.job_id}")
-    logger.info(f"📁 File: {request.file_ref}")
-    logger.info(f"⏳ Queueing background task...")
-    background_tasks.add_task(process_job, request.job_id, request.file_ref)
-    logger.info(f"✅ Background task queued!")
+    logger.info(f"Job received: {request.job_id}")
+    logger.info(f"File URL: {request.file_url}")
+    logger.info(f"Queueing background task...")
+    background_tasks.add_task(process_job, request.job_id, request.file_url)
+    logger.info(f"Background task queued")
     return {"status": "accepted", "job_id": request.job_id}

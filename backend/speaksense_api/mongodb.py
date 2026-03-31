@@ -2,9 +2,12 @@
 MongoDB connection utility for SpeakSense API
 Uses pymongo for synchronous operations
 """
+import logging
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 class MongoDBConnection:
@@ -31,10 +34,10 @@ class MongoDBConnection:
                 # Test the connection
                 self._client.admin.command('ping')
                 self._db = self._client[settings.MONGODB_DB_NAME]
-                print(f"Connected to MongoDB: {settings.MONGODB_DB_NAME}")
+                logger.info(f"Connected to MongoDB: {settings.MONGODB_DB_NAME}")
                 return True
             except ConnectionFailure as e:
-                print(f"MongoDB connection failed: {e}")
+                logger.error(f"MongoDB connection failed: {e}")
                 return False
         return True
     
@@ -55,7 +58,7 @@ class MongoDBConnection:
             self._client.close()
             self._client = None
             self._db = None
-            print("MongoDB connection closed")
+            logger.info("MongoDB connection closed")
 
 
 # Create a global instance

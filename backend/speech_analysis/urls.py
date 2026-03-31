@@ -12,6 +12,9 @@ urlpatterns = [
     # Audio upload endpoint
     path('upload/', views.upload_audio, name='upload_audio'),
     
+    # Audio download endpoint (for GPU Worker)
+    path('download/<str:job_id>/', views.download_audio, name='download_audio'),
+    
     # Analysis job status endpoint
     path('analysis/<str:job_id>/status/', views.analysis_status, name='analysis_status'),
     

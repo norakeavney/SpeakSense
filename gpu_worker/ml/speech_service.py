@@ -2,10 +2,13 @@
 Speech Analysis Service - Whisper + Pyannote (No WhisperX!)
 Clean separation: Whisper for transcription, Pyannote for diarization
 """
+import logging
 import whisper
 import torch
 import os
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -16,14 +19,12 @@ def analyse_audio(file_ref, include_diarization=True):
     if not Path(file_ref).exists():
         raise FileNotFoundError(f"Audio not found: {file_ref}")
     
-    print("\n" + "="*70)
-    print("SPEECH ANALYSIS PIPELINE")
-    print("="*70)
+    logger.info("Speech analysis pipeline started")
     
     # ============================================================
     # STEP 1: TRANSCRIBE WITH WHISPER
     # ============================================================
-    print("\n[1/3] Transcribing with Whisper...")
+    logger.info("[1/3] Transcribing with Whisper...")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     whisper_model = whisper.load_model("base", device=device)
     
@@ -32,7 +33,7 @@ def analyse_audio(file_ref, include_diarization=True):
     text = result['text'].strip()
     segments = result.get('segments', [])
     
-    print(f"✓ Transcription complete! {len(segments)} segments")
+    logger.info(f"Transcription complete! {len(segments)} segments")
     
     # If no diarization needed, return early
     if not include_diarization:
@@ -53,7 +54,7 @@ def analyse_audio(file_ref, include_diarization=True):
     # ============================================================
     # STEP 2: DIARIZE WITH PYANNOTE
     # ============================================================
-    print("\n[2/3] Running speaker diarization...")
+    logger.info("[2/3] Running speaker diarization...")
     
     try:
         from pyannote.audio import Pipeline
@@ -81,11 +82,11 @@ def analyse_audio(file_ref, include_diarization=True):
             })
         
         num_speakers = len(set([seg['speaker'] for seg in speaker_segments]))
-        print(f"✓ Diarization complete! Found {num_speakers} speakers")
+        logger.info(f"Diarization complete! Found {num_speakers} speakers")
         
     except Exception as e:
-        print(f"⚠️ Diarization failed: {e}")
-        print("   Returning transcription without speaker labels...")
+        logger.error(f"Diarization failed: {e}")
+        logger.info("Returning transcription without speaker labels...")
         
         return {
             'status': 'completed',
@@ -105,7 +106,7 @@ def analyse_audio(file_ref, include_diarization=True):
     # ============================================================
     # STEP 3: MATCH TRANSCRIPTION TO SPEAKERS
     # ============================================================
-    print("\n[3/3] Matching speakers to transcript...")
+    logger.info("[3/3] Matching speakers to transcript...")
     
     # Assign speaker to each Whisper segment based on overlap
     for segment in segments:
@@ -144,8 +145,7 @@ def analyse_audio(file_ref, include_diarization=True):
     
     speakers = sorted(list(set([seg.get('speaker', 'SPEAKER_00') for seg in segments])))
     
-    print(f"\nCOMPLETE - {num_speakers} speakers, {len(transcript)} turns")
-    print("="*70 + "\n")
+    logger.info(f"Pipeline complete - {num_speakers} speakers, {len(transcript)} turns")
     
     return {
         'status': 'completed',

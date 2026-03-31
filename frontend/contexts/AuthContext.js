@@ -37,7 +37,6 @@ export const AuthProvider = ({ children }) => {
       const parsedSettings = JSON.parse(rawSettings);
       document.documentElement.classList.toggle('dark', parsedSettings?.theme === 'dark');
     } catch (error) {
-      console.error('Failed to load theme settings:', error);
       document.documentElement.classList.remove('dark');
     }
   }, []);
@@ -67,7 +66,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await apiLogout();
     } catch (error) {
-      console.error('Logout error:', error);
+      // Logout error handled silently
     } finally {
       setUser(null);
       setIsLoggedIn(false);

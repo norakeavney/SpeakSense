@@ -6,10 +6,6 @@
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
-// ============================================
-// AUTHENTICATION HELPERS
-// ============================================
-
 /**
  * Get JWT token from localStorage
  */
@@ -107,7 +103,6 @@ const refreshToken = async () => {
       return false;
     }
   } catch (error) {
-    console.error('Token refresh failed:', error);
     clearTokens();
     return false;
   }
@@ -139,7 +134,6 @@ export const register = async (userData) => {
       return { success: false, errors: data };
     }
   } catch (error) {
-    console.error('Registration error:', error);
     return { success: false, errors: { detail: 'Network error' } };
   }
 };
@@ -166,7 +160,6 @@ export const login = async (credentials) => {
       return { success: false, errors: data };
     }
   } catch (error) {
-    console.error('Login error:', error);
     return { success: false, errors: { detail: 'Network error' } };
   }
 };
@@ -180,7 +173,7 @@ export const logout = async () => {
       method: 'POST',
     });
   } catch (error) {
-    console.error('Logout error:', error);
+    clearTokens();
   } finally {
     clearTokens();
   }
@@ -199,7 +192,6 @@ export const getUserProfile = async () => {
       throw new Error('Failed to fetch profile');
     }
   } catch (error) {
-    console.error('Profile fetch error:', error);
     throw error;
   }
 };
@@ -211,9 +203,7 @@ export const isAuthenticated = () => {
   return !!getAuthToken();
 };
 
-// ============================================
-// USER REPORTS API  
-// ============================================
+// USER REPORTS API
 
 /**
  * Get user's analysis reports
@@ -228,7 +218,6 @@ export const getUserReports = async () => {
       throw new Error('Failed to fetch reports');
     }
   } catch (error) {
-    console.error('Reports fetch error:', error);
     throw error;
   }
 };
@@ -246,7 +235,6 @@ export const getReportDetail = async (jobId) => {
       throw new Error('Failed to fetch report details');
     }
   } catch (error) {
-    console.error('Report detail fetch error:', error);
     throw error;
   }
 };
@@ -266,7 +254,6 @@ export const deleteReport = async (jobId) => {
       throw new Error('Failed to delete report');
     }
   } catch (error) {
-    console.error('Report delete error:', error);
     throw error;
   }
 };
@@ -288,7 +275,6 @@ export const renameReport = async (jobId, payload) => {
       throw new Error(errorData.error || 'Failed to rename report');
     }
   } catch (error) {
-    console.error('Report rename error:', error);
     throw error;
   }
 };
@@ -320,7 +306,6 @@ export const downloadReportPdf = async (jobId) => {
     link.remove();
     window.URL.revokeObjectURL(objectUrl);
   } catch (error) {
-    console.error('Report PDF download error:', error);
     throw error;
   }
 };
@@ -369,7 +354,6 @@ export const uploadAudio = async (input, title = '') => {
     return await response.json();
 
   } catch (error) {
-    console.error('Upload error:', error);
     throw error;
   }
 };
@@ -390,7 +374,6 @@ export const getAnalysisStatus = async (jobId) => {
       throw new Error(error.error || 'Failed to fetch analysis status');
     }
   } catch (error) {
-    console.error('Analysis status error:', error);
     throw error;
   }
 };
@@ -415,7 +398,6 @@ export const confirmSpeakers = async (jobId, speakers) => {
       throw new Error(error.error || 'Failed to confirm speakers');
     }
   } catch (error) {
-    console.error('Speaker confirmation error:', error);
     throw error;
   }
 };
@@ -429,7 +411,6 @@ export const healthCheck = async () => {
     const response = await fetch(`${API_BASE_URL}/health/`);
     return await response.json();
   } catch (error) {
-    console.error('Health check error:', error);
     throw error;
   }
 };
@@ -443,7 +424,6 @@ export const getApiInfo = async () => {
     const response = await fetch(`${API_BASE_URL}/info/`);
     return await response.json();
   } catch (error) {
-    console.error('API info error:', error);
     throw error;
   }
 };

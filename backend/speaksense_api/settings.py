@@ -21,9 +21,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Load .env file explicitly
 env_path = BASE_DIR / '.env'
 load_dotenv(dotenv_path=env_path)
-print(f"Loading .env from: {env_path}")
-print(f".env exists: {env_path.exists()}")
-print(f"HF_TOKEN loaded: {'Yes' if os.getenv('HF_TOKEN') else 'No'}")
 
 
 # Quick-start development settings - unsuitable for production

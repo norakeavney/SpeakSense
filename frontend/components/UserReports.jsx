@@ -27,7 +27,6 @@ const UserReports = ({ onSelectReport }) => {
       const response = await getUserReports();
       setReports(response.reports || []);
     } catch (error) {
-      console.error('Error fetching reports:', error);
       setError('Failed to load reports');
     } finally {
       setLoading(false);
@@ -44,7 +43,6 @@ const UserReports = ({ onSelectReport }) => {
       await deleteReport(jobId);
       setReports(prev => prev.filter(report => report.job_id !== jobId));
     } catch (error) {
-      console.error('Error deleting report:', error);
       alert('Failed to delete report');
     } finally {
       setDeleteLoading(prev => ({ ...prev, [jobId]: false }));
@@ -56,7 +54,6 @@ const UserReports = ({ onSelectReport }) => {
       const reportData = await getReportDetail(jobId);
       onSelectReport(reportData, options);
     } catch (error) {
-      console.error('Error fetching report details:', error);
       alert('Failed to load report details');
     }
   };
@@ -104,7 +101,6 @@ const UserReports = ({ onSelectReport }) => {
 
       cancelRename();
     } catch (error) {
-      console.error('Error renaming report:', error);
       alert('Failed to rename report');
       setRenameState((prev) => ({ ...prev, loading: false }));
     }

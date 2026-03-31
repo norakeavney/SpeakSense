@@ -24,7 +24,7 @@ const Settings = () => {
       const parsed = JSON.parse(raw);
       setSettings((prev) => ({ ...prev, ...parsed }));
     } catch (error) {
-      console.error('Failed to parse settings:', error);
+      setSettings(defaultSettings);
     }
   }, []);
 

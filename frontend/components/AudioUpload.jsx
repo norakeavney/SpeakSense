@@ -11,6 +11,7 @@ export default function AudioUpload({ onUploadComplete }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [url, setUrl] = useState('');
+  const [dragActive, setDragActive] = useState(false);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -18,6 +19,36 @@ export default function AudioUpload({ onUploadComplete }) {
       setFile(selectedFile);
       setError(null);
       setResult(null);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const droppedFiles = e.dataTransfer.files;
+    if (droppedFiles && droppedFiles.length > 0) {
+      const selectedFile = droppedFiles[0];
+      if (selectedFile.type.startsWith('audio/') || selectedFile.type.startsWith('video/')) {
+        setFile(selectedFile);
+        setError(null);
+        setResult(null);
+      } else {
+        setError('Please drop an audio or video file');
+      }
     }
   };
 
@@ -107,7 +138,15 @@ export default function AudioUpload({ onUploadComplete }) {
                     Audio or Video
                   </label>
 
-                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:border-blue-400 transition bg-gray-50">
+                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:border-blue-400 transition bg-gray-50"
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    style={{
+                      borderColor: dragActive ? '#3b82f6' : '#d1d5db',
+                      backgroundColor: dragActive ? '#eff6ff' : '#f9fafb'
+                    }}
+                  >
 
                     <input
                       type="file"
@@ -138,7 +177,7 @@ export default function AudioUpload({ onUploadComplete }) {
                         </svg>
 
                         <p className="text-gray-600 font-medium">
-                          Drag & drop your file here
+                          {dragActive ? 'Drop your file here' : 'Drag & drop your file here'}
                         </p>
 
                         <p className="text-xs text-gray-400">

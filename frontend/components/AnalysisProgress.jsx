@@ -30,7 +30,6 @@ export default function AnalysisProgress({ jobId, onComplete }) {
         }
 
       } catch (err) {
-        console.error('Status polling error:', err);
         clearInterval(interval);
         setError('Failed to fetch analysis status');
       }
@@ -47,7 +46,7 @@ export default function AnalysisProgress({ jobId, onComplete }) {
     return (
       <div className="p-6 bg-white border rounded-lg shadow-sm">
         <div className="text-center">
-          <div className="text-red-600 mb-2">❌ Analysis Failed</div>
+          <div className="text-red-600 mb-2">Analysis Failed</div>
           <p className="text-gray-600">{error}</p>
         </div>
       </div>

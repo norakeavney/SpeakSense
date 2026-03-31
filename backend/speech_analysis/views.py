@@ -279,6 +279,62 @@ def upload_audio(request):
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
+def download_audio(request, job_id):
+    """
+    Download audio file for GPU Worker processing
+    
+    GPU Worker calls this endpoint to fetch uploaded audio files.
+    No authentication required for worker communication.
+    
+    Args:
+        job_id (str): UUID of the analysis job
+        
+    Returns:
+        Binary audio file or error response
+    """
+    try:
+        # Get job from MongoDB
+        job = AnalysisJobManager.get_job(job_id)
+        
+        if not job:
+            return Response({
+                'error': 'Job not found',
+                'job_id': job_id
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get file_ref from job
+        file_ref = job.get('file_ref')
+        
+        if not file_ref:
+            return Response({
+                'error': 'No file associated with this job',
+                'job_id': job_id
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Verify file exists
+        file_path = Path(file_ref)
+        
+        if not file_path.exists():
+            return Response({
+                'error': 'Audio file not found on server',
+                'file_ref': file_ref
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Stream file to GPU Worker
+        with open(file_path, 'rb') as f:
+            response = HttpResponse(f.read(), content_type='audio/wav')
+            response['Content-Disposition'] = f'attachment; filename="{file_path.name}"'
+            return response
+            
+    except Exception as e:
+        return Response({
+            'error': 'Failed to download audio file',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def analysis_status(request, job_id):
     """

@@ -27,13 +27,6 @@ const COLORS = [
   '#0ea5e9',
 ];
 
-// Pastel/muted colors for tabs
-const TAB_COLORS = {
-  overview: { bg: '#f5e6d3', border: '#d6b8a0', text: '#8b6f47' },
-  transcript: { bg: '#d1e7f0', border: '#7fa8c1', text: '#2c5282' },
-};
-
-// Function to get color for speaker tabs (cycling through pastel colors)
 const getSpeakerTabColor = (index) => {
   const speakerColors = [
     { bg: '#e8d5f2', border: '#b39ddb', text: '#6a1b9a' },
@@ -73,8 +66,6 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
   }
 
   const results = data.results;
-
-  // POLITICAL ALIGNMENT
   const politicalData = results.political_alignment?.speakers || {};
   const politicalSpeakers = Object.entries(politicalData);
 
@@ -208,7 +199,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
       const safeName = String(fileName).replace(/[^a-zA-Z0-9-_]/g, '_');
       pdf.save(`${safeName || 'analysis-report'}-report.pdf`);
     } catch (error) {
-      console.error('Failed to export report PDF:', error);
+      setError('Failed to export report PDF');
       alert('Failed to export report PDF');
     } finally {
       if (reportRef.current) {
