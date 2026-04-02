@@ -97,8 +97,8 @@ const Login = ({ onSwitchToRegister, onSuccess }) => {
           </div>
 
           {errors.general && (
-            <div className="text-center text-sm text-red-600">
-              {errors.general}
+            <div className="rounded-md bg-red-50 p-4 mb-4 border border-red-200">
+              <p className="text-sm text-red-800 font-medium">{errors.general}</p>
             </div>
           )}
 

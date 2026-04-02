@@ -60,10 +60,12 @@ class UserLoginSerializer(serializers.Serializer):
                     user = None
             
             if not user:
-                raise serializers.ValidationError("Invalid credentials.")
+                raise serializers.ValidationError({
+                    "general": "Invalid username/email or password. Please try again."
+                })
             
             if not user.is_active:
-                raise serializers.ValidationError("User account is disabled.")
+                raise serializers.ValidationError({"general": "User account is disabled."})
             
             attrs['user'] = user
         else:
