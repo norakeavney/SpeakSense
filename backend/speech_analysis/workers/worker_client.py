@@ -21,7 +21,7 @@ def dispatch_to_worker(job_id: str, file_path: str):
     Returns:
         bool: True if the job was dispatched successfully, False otherwise.
     """
-
+    print("🚀 DISPATCH FUNCTION CALLED")
     print("GPU_WORKER_URL:", GPU_WORKER_URL)
     print("BACKEND_URL:", BACKEND_URL)
     try:
