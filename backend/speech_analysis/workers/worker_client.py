@@ -29,7 +29,7 @@ def dispatch_to_worker(job_id: str, file_path: str):
             "job_id": job_id,
             "file_url": download_url
         }
-        response = requests.post(GPU_WORKER_URL, json=payload, timeout=5)
+        response = requests.post(GPU_WORKER_URL, json=payload, timeout=10)
 
         if response.status_code == 202:
             print(f"Successfully dispatched job {job_id} to GPU worker.")
