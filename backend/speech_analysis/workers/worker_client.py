@@ -4,8 +4,8 @@ Client for dispatching jobs to the external GPU worker.
 import requests
 import os
 
-GPU_WORKER_URL = os.environ.get("GPU_WORKER_URL", "http://localhost:8001/process")
-BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000/api")
+GPU_WORKER_URL = os.environ.get("GPU_WORKER_URL")
+BACKEND_URL = os.environ.get("BACKEND_URL")
 
 def dispatch_to_worker(job_id: str, file_path: str):
     """
