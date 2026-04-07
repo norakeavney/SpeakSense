@@ -28,7 +28,13 @@ def analyse_audio(file_ref, include_diarization=True):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     whisper_model = whisper.load_model("large", device=device)
     
-    result = whisper_model.transcribe(file_ref, word_timestamps=True)
+    result = whisper_model.transcribe(
+        file_ref,
+        language="en",
+        task="transcribe",
+        word_timestamps=True,
+        fp16=torch.cuda.is_available()
+    )
     
     text = result['text'].strip()
     segments = result.get('segments', [])
