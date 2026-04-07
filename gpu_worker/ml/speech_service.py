@@ -26,7 +26,7 @@ def analyse_audio(file_ref, include_diarization=True):
     # ============================================================
     logger.info("[1/3] Transcribing with Whisper...")
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    whisper_model = whisper.load_model("base", device=device)
+    whisper_model = whisper.load_model("large", device=device)
     
     result = whisper_model.transcribe(file_ref, word_timestamps=True)
     
