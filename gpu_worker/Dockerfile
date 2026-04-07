@@ -20,6 +20,9 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 &
 # Upgrade pip
 RUN python -m pip install --upgrade pip setuptools wheel
 
+# Install PyTorch with CUDA 12.1 support
+RUN pip install torch --index-url https://download.pytorch.org/whl/cu121
+
 # Copy requirements first
 COPY requirements.txt .
 
