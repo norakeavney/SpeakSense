@@ -37,14 +37,17 @@ def get_emotion_classifier():
     if _emotion_classifier is None:
         try:
             logger.info("Loading DistilBERT emotion classifier...")
+            import torch
             model_name = "SamLowe/roberta-base-go_emotions"
+            device = 0 if torch.cuda.is_available() else -1  # Use GPU if available, else CPU
             _emotion_classifier = pipeline(
                 "text-classification",
                 model=model_name,
                 top_k=None,
-                device=-1,  # Force CPU to avoid GPU issues
+                device=device,
             )
-            logger.info("✓ DistilBERT loaded successfully")
+            device_msg = f"GPU" if device == 0 else "CPU"
+            logger.info(f"✓ DistilBERT loaded successfully on {device_msg}")
         except Exception as e:
             logger.warning(f"Failed to load DistilBERT: {str(e)}")
             logger.warning("Using keyword-based fallback")

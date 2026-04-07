@@ -130,7 +130,10 @@ def _semantic_rerank(topics: list, anchor_text: str, min_similarity: float = 0.1
     try:
         if _embed_model is None:
             # Same model as KeyBERT - already cached, no extra download
+            import torch
+            device = "cuda" if torch.cuda.is_available() else "cpu"
             _embed_model = SentenceTransformer("all-MiniLM-L6-v2")
+            _embed_model.to(device)
 
         anchor_emb = _embed_model.encode(anchor_text, convert_to_tensor=True)
 
@@ -203,7 +206,10 @@ def extract_topics(
     try:
         if _kw_model is None:
             print("  → Loading KeyBERT model...")
-            _kw_model = KeyBERT(model="all-MiniLM-L6-v2")
+            import torch
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            _kw_model = KeyBERT(model="all-MiniLM-L6-v2", device=device)
+            print(f"  ✓ KeyBERT loaded on {device.upper()}")
 
         # Step 1 - Extract candidates (larger pool before filtering)
         raw = _kw_model.extract_keywords(

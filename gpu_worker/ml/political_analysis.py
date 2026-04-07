@@ -18,11 +18,15 @@ def _get_classifier():
     global _classifier
     if _classifier is None:
         print("Loading BART MNLI model locally...")
+        import torch
+        device = 0 if torch.cuda.is_available() else -1  # Use GPU if available, else CPU
         _classifier = pipeline(
             "zero-shot-classification",
-            model="facebook/bart-large-mnli"
+            model="facebook/bart-large-mnli",
+            device=device
         )
-        print("Model loaded.")
+        device_msg = f"GPU" if device == 0 else "CPU"
+        print(f"Model loaded on {device_msg}.")
     return _classifier
 
 

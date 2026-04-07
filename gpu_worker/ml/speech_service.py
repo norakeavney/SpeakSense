@@ -69,6 +69,11 @@ def analyse_audio(file_ref, include_diarization=True):
             use_auth_token=hf_token
         )
         
+        # Move to GPU if available
+        if torch.cuda.is_available():
+            diarization_pipeline.to("cuda")
+            logger.info("Pyannote moved to GPU")
+        
         # Run diarization
         diarization = diarization_pipeline(file_ref)
         
