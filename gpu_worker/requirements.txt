@@ -18,11 +18,6 @@ pymongo>=4.5.0
 numpy==1.26.4
 scipy==1.11.4
 
-# -------------------------
-# PyTorch Audio ML (PINNED - 2.2.x for compatibility)
-# -------------------------
-torch==2.2.0
-torchaudio==2.2.0
 
 # -------------------------
 # Speech & Audio (PINNED)
