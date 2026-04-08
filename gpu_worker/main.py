@@ -246,6 +246,17 @@ def process_job(job_id: str, file_url: str) -> None:
                     logger.warning(f"[JOB {job_id}]   Seg {i}: speaker={seg.get('speaker')}, text_len={len(seg.get('text', ''))}")
             
             political_result = analyse_speaker_politics(speaker_texts)
+            
+            # Ensure result is never null
+            if political_result is None:
+                logger.error(f"[JOB {job_id}] Political analysis returned None")
+                political_result = {
+                    "model": "facebook/bart-large-mnli (local)",
+                    "speakers": {},
+                    "error": "Political analysis returned null",
+                    "notes": ["Political analysis failed - no data available"]
+                }
+            
             logger.info(f"[JOB {job_id}] Political analysis completed")
 
             update_job(job_id, {

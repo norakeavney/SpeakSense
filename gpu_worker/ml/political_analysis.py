@@ -176,21 +176,21 @@ def analyse_speaker_politics(
             "processing_time_seconds": duration,
             "one_dimensional": {
                 "scores": one_d_map,
-                "top_label": one_d_top,
+                "top_label": one_d_top or "neutral",
                 "confidence": round(one_d_conf, 4),
             },
             "two_dimensional": {
                 "economic": {
                     "scores": econ_map,
                     "axis": round(float(econ_axis), 4),
-                    "top_label": econ_top,
+                    "top_label": econ_top or "neutral",
                     "confidence": round(econ_conf, 4),
                     "interpretation": "negative=progressive, positive=conservative",
                 },
                 "social": {
                     "scores": soc_map,
                     "axis": round(float(soc_axis), 4),
-                    "top_label": soc_top,
+                    "top_label": soc_top or "neutral",
                     "confidence": round(soc_conf, 4),
                     "interpretation": "negative=liberal, positive=conservative",
                 },
@@ -198,6 +198,26 @@ def analyse_speaker_politics(
         }
 
     logger.info(f"Political analysis: Completed for {len(results['speakers'])} speakers")
+    
+    # Final safety check: ensure we always return valid structure
+    if results is None:
+        logger.error("CRITICAL: Political analysis results are None!")
+        return {
+            "model": "facebook/bart-large-mnli (local)",
+            "speakers": {},
+            "error": "Political analysis failed - internal error",
+            "notes": ["Political analysis internal error"]
+        }
+    
+    if not isinstance(results, dict):
+        logger.error(f"CRITICAL: Political analysis results are not dict: {type(results)}")
+        return {
+            "model": "facebook/bart-large-mnli (local)",
+            "speakers": {},
+            "error": "Political analysis failed - invalid result type",
+            "notes": ["Political analysis returned invalid type"]
+        }
+    
     return results
 
 def build_speaker_texts_from_diarized_transcript(
