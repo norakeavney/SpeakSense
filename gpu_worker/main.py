@@ -235,6 +235,16 @@ def process_job(job_id: str, file_url: str) -> None:
         try:
             logger.info(f"[JOB {job_id}] Running political analysis")
             speaker_texts = build_speaker_texts_from_diarized_transcript(transcript)
+            
+            # Debug: log what we extracted
+            logger.info(f"[JOB {job_id}] Extracted speaker texts: {list(speaker_texts.keys())}")
+            
+            if not speaker_texts:
+                logger.warning(f"[JOB {job_id}] No speaker texts extracted from transcript")
+                logger.warning(f"[JOB {job_id}] Transcript segments: {len(transcript)}")
+                for i, seg in enumerate(transcript[:5]):
+                    logger.warning(f"[JOB {job_id}]   Seg {i}: speaker={seg.get('speaker')}, text_len={len(seg.get('text', ''))}")
+            
             political_result = analyse_speaker_politics(speaker_texts)
             logger.info(f"[JOB {job_id}] Political analysis completed")
 

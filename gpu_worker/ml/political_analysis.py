@@ -1,7 +1,10 @@
 import time
+import logging
 from typing import Dict, Any, List, Optional, Tuple
 
 from transformers import pipeline
+
+logger = logging.getLogger(__name__)
 
 
 class PoliticalAnalysisError(Exception):
@@ -94,6 +97,15 @@ def analyse_speaker_politics(
         ],
     }
 
+    # Validate input
+    if not speaker_texts:
+        logger.warning("Political analysis: No speaker texts provided")
+        results["error"] = "No speaker texts provided"
+        results["speakers"] = {}
+        return results
+
+    logger.info(f"Political analysis: Starting analysis for {len(speaker_texts)} speakers")
+
     all_labels = [
         "left-wing politics",
         "centrist politics",
@@ -107,7 +119,7 @@ def analyse_speaker_politics(
     for speaker_id, raw_text in speaker_texts.items():
         text = (raw_text or "").strip()
         if not text:
-            results["speakers"][speaker_id] = {"error": "No text provided."}
+            results["speakers"][speaker_id] = {"warning": "Empty text - skipped", "error": "No text provided."}
             continue
 
         if len(text) > max_chars:
@@ -185,6 +197,7 @@ def analyse_speaker_politics(
             },
         }
 
+    logger.info(f"Political analysis: Completed for {len(results['speakers'])} speakers")
     return results
 
 def build_speaker_texts_from_diarized_transcript(
@@ -201,14 +214,27 @@ def build_speaker_texts_from_diarized_transcript(
     """
 
     out: Dict[str, List[str]] = {}
+    empty_text_count = 0
+    missing_speaker_count = 0
 
     for turn in diarized_transcript or []:
         sid = str(turn.get(speaker_field, "")).strip()
         t = str(turn.get(text_field, "")).strip()
 
-        if not sid or not t:
+        if not sid:
+            missing_speaker_count += 1
+            continue
+        
+        if not t:
+            empty_text_count += 1
             continue
 
         out.setdefault(sid, []).append(t)
+    
+    if empty_text_count > 0 or missing_speaker_count > 0:
+        logger.warning(
+            f"build_speaker_texts: Skipped {empty_text_count} empty texts, "
+            f"{missing_speaker_count} missing speakers"
+        )
 
     return {sid: " ".join(chunks) for sid, chunks in out.items()}
