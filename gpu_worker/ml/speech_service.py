@@ -70,6 +70,7 @@ def _convert_to_clean_wav(file_ref, target_sr=16000):
     except Exception as e:
         logger.error(f"Audio conversion failed: {e}")
         logger.warning("Falling back to original file (may cause diarization issues)")
+        
         return file_ref
 
 
@@ -150,8 +151,12 @@ def analyse_audio(file_ref, include_diarization=True):
         logger.error(f"Diarization failed: {e}")
         logger.info("Continuing WITHOUT speaker labels...")
         
-        # Fallback: set empty speaker segments, continue pipeline
-        speaker_segments = []
+        # Fallback: create one speaker covering entire audio for consistency
+        speaker_segments = [{
+            'start': 0,
+            'end': segments[-1]['end'] if segments else 0,
+            'speaker': 'SPEAKER_00'
+        }]
         num_speakers = 1
     
     # ============================================================
@@ -172,12 +177,12 @@ def analyse_audio(file_ref, include_diarization=True):
                 assigned_speaker = speaker_seg['speaker']
                 break
         
-        segment['speaker'] = assigned_speaker
+        segment['speaker'] = assigned_speaker or 'SPEAKER_00'
     
     # Build transcript with speaker labels
     transcript = []
     for segment in segments:
-        speaker = segment.get('speaker', 'SPEAKER_00')
+        speaker = segment.get('speaker') or 'SPEAKER_00'
         seg_text = segment['text'].strip()
         start = segment['start']
         end = segment['end']
@@ -198,7 +203,10 @@ def analyse_audio(file_ref, include_diarization=True):
                 'end': end
             })
     
-    speakers = sorted(list(set([seg.get('speaker', 'SPEAKER_00') for seg in segments])))
+    speakers = sorted(list(set([
+        seg.get('speaker') or 'SPEAKER_00'
+        for seg in segments
+    ])))
     
     logger.info(f"Pipeline complete - {num_speakers} speakers, {len(transcript)} turns")
     
