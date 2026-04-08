@@ -6,9 +6,71 @@ import logging
 import whisper
 import torch
 import os
+import tempfile
 from pathlib import Path
+import librosa
+import soundfile as sf
 
 logger = logging.getLogger(__name__)
+
+# ============================================================
+# GLOBAL MODEL INITIALIZATION (loaded once at startup)
+# ============================================================
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+logger.info(f"Initializing Whisper model on {DEVICE}...")
+WHISPER_MODEL = whisper.load_model("large", device=DEVICE)
+logger.info(f"Whisper model ready on {DEVICE}")
+
+# Initialize Pyannote pipeline
+logger.info("Initializing Pyannote diarization pipeline...")
+HF_TOKEN = os.getenv('HF_TOKEN') or os.getenv('HUGGINGFACE_TOKEN')
+try:
+    from pyannote.audio import Pipeline
+    
+    if not HF_TOKEN:
+        logger.warning("HF_TOKEN not found in .env - diarization will fail")
+        DIARIZATION_PIPELINE = None
+    else:
+        DIARIZATION_PIPELINE = Pipeline.from_pretrained(
+            "pyannote/speaker-diarization-3.1",
+            use_auth_token=HF_TOKEN
+        )
+        DIARIZATION_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        DIARIZATION_PIPELINE.to(DIARIZATION_DEVICE)
+        logger.info(f"Pyannote ready on {DIARIZATION_DEVICE}")
+except Exception as e:
+    logger.error(f"Failed to load Pyannote: {e}")
+    DIARIZATION_PIPELINE = None
+
+
+def _convert_to_clean_wav(file_ref, target_sr=16000):
+    """
+    Convert any audio format to mono 16kHz WAV for consistent Whisper + Pyannote processing.
+    
+    Args:
+        file_ref: Path to audio file (mp4, m4a, wav, etc.)
+        target_sr: Target sample rate (default 16000 Hz)
+    
+    Returns:
+        Path to converted WAV file (in temp directory)
+    """
+    try:
+        logger.info(f"Converting audio to mono {target_sr}Hz WAV...")
+        
+        # Load audio (librosa handles all formats: mp4, m4a, wav, etc.)
+        y, sr = librosa.load(file_ref, sr=target_sr, mono=True)
+        logger.info(f"Loaded: {sr}Hz, shape={y.shape}")
+        
+        # Save to temp WAV file
+        temp_wav = Path(tempfile.gettempdir()) / f"speaksense_clean_{Path(file_ref).stem}.wav"
+        sf.write(str(temp_wav), y, target_sr)
+        logger.info(f"Converted to {temp_wav}")
+        
+        return str(temp_wav)
+    except Exception as e:
+        logger.error(f"Audio conversion failed: {e}")
+        logger.warning("Falling back to original file (may cause diarization issues)")
+        return file_ref
 
 
 
@@ -22,15 +84,18 @@ def analyse_audio(file_ref, include_diarization=True):
     logger.info("Speech analysis pipeline started")
     
     # ============================================================
+    # STEP 0: CONVERT AUDIO TO CLEAN WAV
+    # ============================================================
+    logger.info("[0/3] Converting audio to clean mono WAV...")
+    audio_path = _convert_to_clean_wav(file_ref)
+    
+    # ============================================================
     # STEP 1: TRANSCRIBE WITH WHISPER
     # ============================================================
     logger.info("[1/3] Transcribing with Whisper...")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    whisper_model = whisper.load_model("large", device=device)
     
-    result = whisper_model.transcribe(
-        file_ref,
-        language="en",
+    result = WHISPER_MODEL.transcribe(
+        audio_path,
         task="transcribe",
         word_timestamps=True,
         fp16=torch.cuda.is_available()
@@ -63,25 +128,11 @@ def analyse_audio(file_ref, include_diarization=True):
     logger.info("[2/3] Running speaker diarization...")
     
     try:
-        from pyannote.audio import Pipeline
+        if DIARIZATION_PIPELINE is None:
+            raise RuntimeError("Diarization pipeline not available")
         
-        hf_token = os.getenv('HF_TOKEN') or os.getenv('HUGGINGFACE_TOKEN')
-        if not hf_token:
-            raise ValueError("HF_TOKEN not found in .env")
-        
-        # Load diarization pipeline with use_auth_token (older huggingface_hub)
-        diarization_pipeline = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization-3.1",
-            use_auth_token=hf_token
-        )
-        
-        # Move to GPU if available
-        if torch.cuda.is_available():
-            diarization_pipeline.to("cuda")
-            logger.info("Pyannote moved to GPU")
-        
-        # Run diarization
-        diarization = diarization_pipeline(file_ref)
+        # Run diarization on clean WAV audio using global pipeline
+        diarization = DIARIZATION_PIPELINE(audio_path)
         
         # Convert to list of speaker segments
         speaker_segments = []
@@ -97,22 +148,11 @@ def analyse_audio(file_ref, include_diarization=True):
         
     except Exception as e:
         logger.error(f"Diarization failed: {e}")
-        logger.info("Returning transcription without speaker labels...")
+        logger.info("Continuing WITHOUT speaker labels...")
         
-        return {
-            'status': 'completed',
-            'text': text,
-            'segments': segments,
-            'transcript': [{
-                'speaker': 'SPEAKER_00',
-                'text': text,
-                'start': 0.0,
-                'end': segments[-1]['end'] if segments else 0
-            }],
-            'num_speakers': 1,
-            'speakers': ['SPEAKER_00'],
-            'diarization_error': str(e)
-        }
+        # Fallback: set empty speaker segments, continue pipeline
+        speaker_segments = []
+        num_speakers = 1
     
     # ============================================================
     # STEP 3: MATCH TRANSCRIPTION TO SPEAKERS
@@ -142,8 +182,12 @@ def analyse_audio(file_ref, include_diarization=True):
         start = segment['start']
         end = segment['end']
         
-        # Merge consecutive segments from same speaker
-        if transcript and transcript[-1]['speaker'] == speaker:
+        # Merge consecutive segments from same speaker (only if gap < 1 second)
+        if (
+            transcript
+            and transcript[-1]['speaker'] == speaker
+            and (start - transcript[-1]['end']) < 1.0
+        ):
             transcript[-1]['text'] += ' ' + seg_text
             transcript[-1]['end'] = end
         else:

@@ -14,12 +14,15 @@ def download_youtube_audio(url, output_dir="uploads"):
     output_path = os.path.join(output_dir, file_id)
 
     ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': f'{output_path}.%(ext)s',
+        'format': 'bestaudio[ext=m4a]/bestaudio/best',
+        'outtmpl': output_path,
+        'quiet': True,
+        'no_warnings': True,
+        'noplaylist': True,
+        'http_headers': { 'User-Agent': 'Mozilla/5.0'},
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'wav',
-            'preferredquality': '192',
         }],
     }
 
