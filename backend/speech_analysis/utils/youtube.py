@@ -16,17 +16,10 @@ def download_youtube_audio(url, output_dir="uploads"):
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': f"{output_path}.%(ext)s",
-        'geo_bypass': True,
-        'geo_bypass_country': 'US',
-        'quiet': False,  # TURN THIS OFF FOR DEBUG
+        'cookiefile': '/app/cookies.txt',
+        'quiet': True, 
         'noplaylist': True,
-
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['android']
-            }
-        },
-
+        'ignoreerrors': False,
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'wav',
