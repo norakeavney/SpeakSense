@@ -71,7 +71,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
   }
 
   const results = data.results;
-  const politicalData = results.political_alignment?.speakers || {};
+  const politicalData = results.political_analysis?.speakers || {};
   const politicalSpeakers = Object.entries(politicalData);
 
   // EMOTION → PIE DATA
@@ -468,7 +468,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
                           <div className="w-full bg-gray-200 h-3 rounded-full">
                             <div
                               className={`h-3 rounded-full ${econ?.axis >= 0 ? 'bg-red-500' : 'bg-green-500'}`}
-                              style={{ width: `${Math.abs(social?.axis || 0) * 50}%` }}
+                              style={{ width: `${Math.abs(econ?.axis || 0) * 50}%` }}
                             />
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
