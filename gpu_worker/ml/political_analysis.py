@@ -1,6 +1,7 @@
 import time
 import logging
 from typing import Dict, Any, List, Optional, Tuple
+from unittest import result
 
 from transformers import pipeline
 
@@ -88,6 +89,12 @@ def analyse_speaker_politics(
     max_chars: int = 2000,   # trimmed for speed
 ) -> Dict[str, Any]:
 
+    logger.info(f"Political analysis input speakers: {list(speaker_texts.keys())}")
+
+    for sid, txt in speaker_texts.items():
+        logger.info(f"{sid} text length: {len(txt)}")
+        logger.info(f"{sid} sample: {txt[:100]}")
+
     results: Dict[str, Any] = {
         "model": "facebook/bart-large-mnli (local)",
         "speakers": {},
@@ -130,6 +137,9 @@ def analyse_speaker_politics(
         start = time.time()
         result = classifier(text, all_labels, multi_label=False)
         duration = round(time.time() - start, 2)
+
+        logger.info(f"{speaker_id} raw labels: {result['labels']}")
+        logger.info(f"{speaker_id} raw scores: {result['scores']}")
 
         resp = {
             "labels": result["labels"],
@@ -198,6 +208,7 @@ def analyse_speaker_politics(
         }
 
     logger.info(f"Political analysis: Completed for {len(results['speakers'])} speakers")
+    logger.info(f"{speaker_id} final result: {results['speakers'][speaker_id]}")
     
     # Final safety check: ensure we always return valid structure
     if results is None:
