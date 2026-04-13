@@ -12,7 +12,9 @@ export default function WordCloud({ words = [], height = 300, maxWords = 50 }) {
   }
 
   // Calculate word sizes and positions
-  const displayWords = words.slice(0, maxWords);
+  const displayWords = [...words]
+  .sort((a, b) => (b.score || 0) - (a.score || 0))
+  .slice(0, maxWords);
   
   // Normalize scores to get font sizes (14px to 42px range)
   const wordData = useMemo(() => {
@@ -23,7 +25,7 @@ export default function WordCloud({ words = [], height = 300, maxWords = 50 }) {
     return displayWords.map((word, index) => {
       const score = word.score || 0.5;
       const normalizedScore = (score - minScore) / scoreRange;
-      const fontSize = 14 + normalizedScore * 28; // 14px to 42px
+      const fontSize = 16 + normalizedScore * 50;
       
       // Color based on score (gradient from pastel blue to pastel purple)
       const hue = 200 + normalizedScore * 60; // 200 (blue) to 260 (purple)
@@ -43,27 +45,20 @@ export default function WordCloud({ words = [], height = 300, maxWords = 50 }) {
 
   // Calculate positions using a simple random layout
   const positions = useMemo(() => {
-    const positioned = [];
-    const width = 100; // percentage
-    const containerHeight = 100; // percentage
-    
-    wordData.forEach((item, index) => {
-      // Use a seed-based pseudo-random for consistent positioning
-      const seed = index * 12.9898;
-      const rand1 = Math.sin(seed) * 43758.5453 % 1;
-      const rand2 = Math.sin(seed * 78.233) * 43758.5453 % 1;
-      
-      const left = rand1 * 85; // Leave margin
-      const top = rand2 * 85;
-      
-      positioned.push({
+    const cols = 5; // control density
+    const gapX = 100 / cols;
+    const gapY = 100 / Math.ceil(wordData.length / cols);
+
+    return wordData.map((item, index) => {
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+
+      return {
         ...item,
-        left,
-        top,
-      });
+        left: col * gapX + 5,
+        top: row * gapY + 5,
+      };
     });
-    
-    return positioned;
   }, [wordData]);
 
   return (

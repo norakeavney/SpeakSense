@@ -24,10 +24,13 @@ _openai_client = None
 _FILLER_WORDS = ["um", "uh", "like", "you know", "yeah", "ok", "right", "oh"]
 
 _BASIC_STOPWORDS = {
-    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has",
-    "have", "he", "in", "is", "it", "its", "of", "on", "that", "the", "to",
-    "was", "were", "will", "with", "we", "you", "they", "this", "those",
-    "these", "i", "me", "my",
+    "a","an","and","are","as","at","be","by","for","from","has","have",
+    "he","she","it","they","them","we","you","i","me","my",
+    "in","is","of","on","that","this","those","these","to","was","were","will","with",
+    "what","which","who","whom","why","how",
+    "yeah","okay","ok","right","well","just","like","know",
+    "our","their","his","her","its",
+    "not","so","if","then","than"
 }
 
 
@@ -61,7 +64,7 @@ def _structural_filter(topics: list, min_score: float = 0.20) -> list:
             continue
 
         # Single words need a slightly higher score to be considered a topic
-        if len(words) == 1 and score < min_score + 0.15:
+        if len(words) < 2:
             continue
 
         # Skip very short word fragments (avg word length under 2.5 chars) - slightly relaxed
@@ -174,7 +177,7 @@ def extract_topics(
     segments: list = None,
     max_topics: int = 8,
     max_keywords: int = 25,
-    min_score: float = 0.20,
+    min_score: float = 0.35,
     min_similarity: float = 0.12,
     diversity: float = 0.65
 ) -> dict:
@@ -191,7 +194,7 @@ def extract_topics(
         segments: Optional list of text segments
         max_topics: Maximum number of main topics to return (default 8)
         max_keywords: Maximum number of keywords to extract (default 25)
-        min_score: Minimum KeyBERT score threshold (default 0.20, lower = more permissive)
+        min_score: Minimum KeyBERT score threshold (default 0.35, lower = more permissive)
         min_similarity: Minimum semantic similarity threshold (default 0.12, lower = more permissive)
         diversity: KeyBERT diversity parameter (default 0.65, lower = more similar topics allowed)
     """
@@ -257,5 +260,5 @@ def extract_topics(
         }
 
     except Exception as e:
-        print(f"  → KeyBERT failed: {e}, using fallback")
+        print(f"  KeyBERT failed: {e}, using fallback")
         return _fallback_topics(text, max_topics, max_keywords)
