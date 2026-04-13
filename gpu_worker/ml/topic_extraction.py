@@ -217,7 +217,7 @@ def extract_topics(
         # Step 1 - Extract candidates (larger pool before filtering)
         raw = _kw_model.extract_keywords(
             text,
-            vectorizer=CountVectorizer(ngram_range=(1, 3), stop_words="english", min_df=1),
+            vectorizer=CountVectorizer(ngram_range=(1, 3), stop_words=list(_BASIC_STOPWORDS), min_df=1),
             use_mmr=True,
             diversity=diversity,
             top_n=max_keywords
