@@ -1,4 +1,4 @@
-version: '3.9'
+version: "3.9"
 
 services:
   backend:
@@ -8,31 +8,11 @@ services:
       - "8000:8000"
     env_file:
       - ./.env
+    environment:
+      - GPU_WORKER_URL=http://52.6.208.138:8001/process
     volumes:
       - media_data:/app/media
     restart: unless-stopped
-
-  gpu_worker:
-    build: ./gpu_worker
-    container_name: ss-gpu-worker
-    ports:
-      - "8001:8001"
-    env_file:
-      - ./gpu_worker/.env
-    environment:
-      # Override URLs for container-to-container communication
-      - BACKEND_URL=http://backend:8000/api
-    depends_on:
-      - backend
-    restart: unless-stopped
-    # Uncomment below if running on GPU EC2 (requires nvidia-docker)
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
 
   frontend:
     build: ./frontend
@@ -40,21 +20,10 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+      - NEXT_PUBLIC_API_URL=http://52.55.198.180:8000/api
     depends_on:
       - backend
     restart: unless-stopped
 
-  portainer:
-    image: portainer/portainer-ce
-    container_name: portainer
-    ports:
-      - "9000:9000"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
-    restart: unless-stopped
-
 volumes:
   media_data:
-  portainer_data:

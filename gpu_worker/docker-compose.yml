@@ -1,7 +1,4 @@
-version: '3.9'
-
-# GPU Worker Docker Compose - Deploy on GPU EC2 Instance
-# This is separate from the main docker-compose.yml which runs on CPU instance
+version: "3.9"
 
 services:
   gpu_worker:
@@ -11,18 +8,16 @@ services:
     container_name: ss-gpu-worker
     ports:
       - "8001:8001"
+    env_file:
+      - ./.env
     environment:
-      # MongoDB connection - should point to Atlas or your MongoDB instance
-      - MONGODB_URI=${MONGODB_URI}
-      # GPU settings
-      - CUDA_VISIBLE_DEVICES=0  # Adjust for multi-GPU: 0,1,2 etc
+      - CUDA_VISIBLE_DEVICES=0
+      - BACKEND_URL=http://52.55.198.180:8000/api
     volumes:
-      # Mount local media for input audio files
       - audio_uploads:/app/media/audio_uploads
-      # Optional: Mount logs
       - ./logs:/app/logs
     restart: unless-stopped
-    # Resource limits for GPU container
+
     deploy:
       resources:
         reservations:
@@ -30,6 +25,7 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/docs"]
       interval: 30s
@@ -39,8 +35,3 @@ services:
 
 volumes:
   audio_uploads:
-    driver: local
-
-# Network note: GPU worker communicates with backend via HTTP over public internet
-# Backend will call: http://{GPU_WORKER_PUBLIC_IP}:8001/process
-# Set GPU_WORKER_URL in .env on CPU instance accordingly
