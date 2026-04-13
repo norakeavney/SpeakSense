@@ -64,7 +64,7 @@ def _structural_filter(topics: list, min_score: float = 0.20) -> list:
             continue
 
         # Single words need a slightly higher score to be considered a topic
-        if len(words) < 2:
+        if len(words) < 2 and score < (min_score + 0.1):
             continue
 
         # Skip very short word fragments (avg word length under 2.5 chars) - slightly relaxed

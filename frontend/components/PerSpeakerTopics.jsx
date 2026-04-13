@@ -10,6 +10,11 @@ export default function PerSpeakerTopics({
 }) {
   const [expandedSpeaker, setExpandedSpeaker] = useState(activeSpeaker);
 
+  const safeReplace = (text) => {
+    if (!text) return "Unknown";
+    return String(text).replace(/_/g, " ");
+  };
+
   if (!perSpeakerTopics || Object.keys(perSpeakerTopics).length === 0) {
     return (
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
@@ -58,7 +63,7 @@ export default function PerSpeakerTopics({
                   className="font-semibold"
                   style={{ color: color.text }}
                 >
-                  {speaker.replace('_', ' ')}
+                  {safeReplace(speaker)}
                 </h4>
                 <p className="text-sm text-gray-600 mt-1">
                   <span className="font-medium">{topics.length}</span> main topic{topics.length !== 1 ? 's' : ''} • 

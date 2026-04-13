@@ -4,6 +4,11 @@ import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid, Legend } from 'recharts';
 
 export default function BiasDetection({ biasAnalysis = {} }) {
+  const safeReplace = (text) => {
+    if (!text) return "Unknown";
+    return String(text).replace(/_/g, " ");
+  };
+
   if (!biasAnalysis || !biasAnalysis.overall_bias_score) {
     return (
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
@@ -38,13 +43,13 @@ export default function BiasDetection({ biasAnalysis = {} }) {
 
   // Prepare chart data
   const timeDistributionData = Object.entries(time_distribution || {}).map(([speaker, percentage]) => ({
-    name: speaker.replace('_', ' '),
+    name: safeReplace(speaker),
     value: percentage,
     color: '#3b82f6'
   }));
 
   const questionDistributionData = Object.entries(question_distribution || {}).map(([speaker, percentage]) => ({
-    name: speaker.replace('_', ' '),
+    name: safeReplace(speaker),
     value: percentage,
     color: '#10b981'
   }));
@@ -113,7 +118,7 @@ export default function BiasDetection({ biasAnalysis = {} }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="border border-gray-200 rounded-lg p-4">
               <p className="text-xs text-gray-600 uppercase mb-2">Name</p>
-              <p className="text-lg font-semibold">{moderator.speaker.replace('_', ' ')}</p>
+              <p className="text-lg font-semibold">{safeReplace(moderator.speaker)}</p>
             </div>
             <div className="border border-gray-200 rounded-lg p-4">
               <p className="text-xs text-gray-600 uppercase mb-2">Speaking Time</p>
@@ -201,7 +206,7 @@ export default function BiasDetection({ biasAnalysis = {} }) {
             {candidateMetrics.map((candidate) => (
               <div key={candidate.speaker} className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-start justify-between mb-3">
-                  <h5 className="font-semibold text-lg">{candidate.speaker.replace('_', ' ')}</h5>
+                  <h5 className="font-semibold text-lg">{safeReplace(candidate.speaker)}</h5>
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                     candidate.sentiment_score > 0.1 ? 'bg-green-100 text-green-800' :
                     candidate.sentiment_score < -0.1 ? 'bg-red-100 text-red-800' :
@@ -263,10 +268,10 @@ export default function BiasDetection({ biasAnalysis = {} }) {
             <li>• Speaking time spread: {fairness_metrics.time_spread_percent}% (higher = more unequal)</li>
           )}
           {fairness_metrics?.time_most_given_to && (
-            <li>• Most speaking time given to: <strong>{fairness_metrics.time_most_given_to.replace('_', ' ')}</strong></li>
+            <li>• Most speaking time given to: <strong>{safeReplace(fairness_metrics.time_most_given_to)}</strong></li>
           )}
           {fairness_metrics?.time_least_given_to && (
-            <li>• Least speaking time given to: <strong>{fairness_metrics.time_least_given_to.replace('_', ' ')}</strong></li>
+            <li>• Least speaking time given to: <strong>{safeReplace(fairness_metrics.time_least_given_to)}</strong></li>
           )}
           {moderator?.leading_questions_count > 0 && (
             <li>• {moderator.leading_questions_count} leading questions detected ({(moderator.leading_questions_ratio * 100).toFixed(0)}% of all questions)</li>

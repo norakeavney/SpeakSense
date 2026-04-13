@@ -14,6 +14,11 @@ export default function TopicSentimentAnalysis({ topicSentiment = {}, speakersAv
     );
   }
 
+  const safeReplace = (text) => {
+    if (!text) return "Unknown";
+    return String(text).replace(/_/g, " ");
+  };
+
   const topicEntries = Object.entries(topicSentiment).sort((a, b) => b[1].mentions - a[1].mentions);
 
   const getSentimentColor = (sentiment) => {
@@ -109,7 +114,7 @@ export default function TopicSentimentAnalysis({ topicSentiment = {}, speakersAv
                     {Object.entries(data.per_speaker).map(([speaker, speakerData]) => (
                       <div key={speaker} className="ml-2">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-700 font-medium">{speaker.replace('_', ' ')}</span>
+                          <span className="text-gray-700 font-medium">{safeReplace(speaker)}</span>
                           <span className="text-gray-600">
                             {speakerData.mentions} mention{speakerData.mentions !== 1 ? 's' : ''}
                           </span>

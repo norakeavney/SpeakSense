@@ -7,6 +7,11 @@ export default function AnalysisProgress({ jobId, onComplete }) {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
 
+  const safeReplace = (text) => {
+    if (!text) return "Unknown";
+    return String(text).replace(/_/g, " ");
+  };
+
   useEffect(() => {
     if (!jobId) return;
 
@@ -73,7 +78,7 @@ export default function AnalysisProgress({ jobId, onComplete }) {
             key={step}
             className="flex justify-between text-sm border-b py-1"
           >
-            <span className="capitalize">{step.replace('_', ' ')}</span>
+            <span className="capitalize">{safeReplace(step)}</span>
             <span className="font-medium capitalize">{stepStatus}</span>
           </div>
         ))}

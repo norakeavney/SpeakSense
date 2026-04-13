@@ -51,6 +51,10 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   
+  const safeReplace = (text) => {
+    if (!text) return "Unknown";
+    return String(text).replace(/_/g, " ");
+  };
 
   if (!data || !data.results) {
     return (
@@ -539,7 +543,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
                     border: `3px solid ${speakerColor.border}`,
                   }}
                 >
-                  <h3 className="text-base font-medium mb-4">{(activeTab || "Unknown").replace('_', ' ')} Summary Summary</h3>
+                  <h3 className="text-base font-medium mb-4">{safeReplace(activeTab || "Unknown")} Summary Summary</h3>
                   {selectedSpeakerMetrics ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="border border-gray-200 rounded-lg p-4">
