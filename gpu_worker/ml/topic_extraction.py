@@ -33,6 +33,13 @@ _BASIC_STOPWORDS = {
     "not","so","if","then","than"
 }
 
+_EXTRA_STOPWORDS = {
+    "one","say","said","look","going","done","into","back",
+    "because","when","that's","they're","she's","he's",
+    "people","thing","things","way","time","make","made",
+    "really","want","think","know","see","come","even",
+    "well","just","like","yeah","okay","right"
+}
 
 def _clean_text(text: str) -> str:
     """Remove filler words and extra whitespace."""
@@ -42,38 +49,55 @@ def _clean_text(text: str) -> str:
     return re.sub(r'\s+', ' ', text).strip()
 
 
-def _structural_filter(topics: list, min_score: float = 0.20) -> list:
+def _structural_filter(topics: list, min_score: float = 0.35) -> list:
     """
-    Filter bad phrases using universal rules - no hardcoded topic words.
-    Works for ANY debate type.
-    
-    Args:
-        topics: List of (phrase, score) tuples
-        min_score: Minimum relevance score threshold (default 0.20, lower = more permissive)
+    Balanced filtering:
+    - Keeps meaningful phrases
+    - Allows strong single-word topics
+    - Removes conversational noise
     """
     kept = []
+
     for phrase, score in topics:
         words = phrase.split()
 
-        # Must have a minimum relevance score
+        # Minimum relevance
         if score < min_score:
             continue
 
-        # Skip phrases containing digits (catches "16 19th century" etc.)
+        # Remove digits
         if any(w.isdigit() for w in words):
             continue
 
-        # Single words need a slightly higher score to be considered a topic
-        if len(words) < 2 and score < (min_score + 0.1):
-            continue
+        # HANDLE SINGLE WORDS 
+        if len(words) == 1:
+            word = words[0]
 
-        # Skip very short word fragments (avg word length under 2.5 chars) - slightly relaxed
-        if sum(len(w) for w in words) / len(words) < 2.5:
-            continue
+            # Too short = junk
+            if len(word) < 5:
+                continue
+
+            # Stopwords = junk
+            if word in _BASIC_STOPWORDS or word in _EXTRA_STOPWORDS:
+                continue
+
+            # Must be stronger than phrases
+            if score < (min_score + 0.1):
+                continue
+
+        # HANDLE PHRASES
+        else:
+            # Remove phrases dominated by stopwords
+            if sum(1 for w in words if w in _BASIC_STOPWORDS or w in _EXTRA_STOPWORDS) >= len(words) / 2:
+                continue
+
+            # Avoid very short meaningless phrases
+            if sum(len(w) for w in words) / len(words) < 3:
+                continue
 
         kept.append((phrase, score))
-    return kept
 
+    return kept
 
 def _generate_summary(text: str) -> str:
     """
@@ -116,7 +140,7 @@ def _generate_summary(text: str) -> str:
         return ""
 
 
-def _semantic_rerank(topics: list, anchor_text: str, min_similarity: float = 0.12) -> list:
+def _semantic_rerank(topics: list, anchor_text: str, min_similarity: float = 0.18) -> list:
     """
     Score each topic phrase against the debate summary using cosine similarity.
     Phrases unrelated to the actual debate content get dropped.
@@ -124,7 +148,7 @@ def _semantic_rerank(topics: list, anchor_text: str, min_similarity: float = 0.1
     Args:
         topics: List of (phrase, score) tuples
         anchor_text: Reference text (debate summary) to compare against
-        min_similarity: Minimum semantic similarity threshold (default 0.12, lower = more permissive)
+        min_similarity: Minimum semantic similarity threshold (default 0.18, lower = more permissive)
     """
     global _embed_model
     if not anchor_text or not topics:
@@ -178,7 +202,7 @@ def extract_topics(
     max_topics: int = 8,
     max_keywords: int = 25,
     min_score: float = 0.35,
-    min_similarity: float = 0.12,
+    min_similarity: float = 0.18,
     diversity: float = 0.65
 ) -> dict:
     """
@@ -195,7 +219,7 @@ def extract_topics(
         max_topics: Maximum number of main topics to return (default 8)
         max_keywords: Maximum number of keywords to extract (default 25)
         min_score: Minimum KeyBERT score threshold (default 0.35, lower = more permissive)
-        min_similarity: Minimum semantic similarity threshold (default 0.12, lower = more permissive)
+        min_similarity: Minimum semantic similarity threshold (default 0.18, lower = more permissive)
         diversity: KeyBERT diversity parameter (default 0.65, lower = more similar topics allowed)
     """
     text = _clean_text(text)
@@ -217,7 +241,7 @@ def extract_topics(
         # Step 1 - Extract candidates (larger pool before filtering)
         raw = _kw_model.extract_keywords(
             text,
-            vectorizer=CountVectorizer(ngram_range=(1, 3), stop_words=list(_BASIC_STOPWORDS), min_df=1),
+            vectorizer=CountVectorizer(ngram_range=(1, 3), stop_words=list(_BASIC_STOPWORDS.union(_EXTRA_STOPWORDS)),min_df=1),
             use_mmr=True,
             diversity=diversity,
             top_n=max_keywords
