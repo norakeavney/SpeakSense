@@ -230,7 +230,11 @@ export default function AudioUpload({ onUploadComplete }) {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://youtube.com/watch?v=..."
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full bg-gray-800 border border-gray-600 text-white 
+                             rounded-lg px-4 py-3 
+                             placeholder-gray-400 
+                             focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                             font-sans"
                 />
 
                 <input
@@ -238,7 +242,11 @@ export default function AudioUpload({ onUploadComplete }) {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Optional title"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full bg-gray-800 border border-gray-600 text-white 
+                             rounded-lg px-4 py-3 
+                             placeholder-gray-400 
+                             focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                             font-sans"
                 />
 
                 <button

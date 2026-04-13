@@ -19,6 +19,7 @@ def download_youtube_audio(url, output_dir="uploads"):
         'cookiefile': '/app/cookies.txt',
         'quiet': True, 
         'noplaylist': True,
+        'geo_bypass': True,
         'ignoreerrors': False,
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
@@ -26,7 +27,13 @@ def download_youtube_audio(url, output_dir="uploads"):
         }],
     }   
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+    except Exception as e:
+        raise Exception(
+            "YouTube download failed due to platform restrictions. "
+            "Please upload the audio file instead."
+        )
 
     return f"{output_path}.wav"

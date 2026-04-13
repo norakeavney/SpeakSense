@@ -201,7 +201,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
         heightLeft -= pageHeight;
       }
 
-      const safeName = String(fileName).replace(/[^a-zA-Z0-9-_]/g, '_');
+      const safeName = (fileName ? String(fileName) : "analysis-report").replace(/[^a-zA-Z0-9-_]/g, '_');
       pdf.save(`${safeName || 'analysis-report'}-report.pdf`);
     } catch (error) {
       setError('Failed to export report PDF');
@@ -285,7 +285,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
               borderColor: activeTab === speaker ? speakerColor.border : "transparent",
             }}
           >
-            {speaker.replace("_", " ")}
+            {(speaker || "Unknown Speaker").replace("_", " ")}
           </button>
         );
       })}
@@ -539,7 +539,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
                     border: `3px solid ${speakerColor.border}`,
                   }}
                 >
-                  <h3 className="text-base font-medium mb-4">{activeTab.replace('_', ' ')} Summary</h3>
+                  <h3 className="text-base font-medium mb-4">{(activeTab || "Unknown").replace('_', ' ')} Summary Summary</h3>
                   {selectedSpeakerMetrics ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="border border-gray-200 rounded-lg p-4">
