@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import cloud from "d3-cloud";
+import * as d3 from "d3";
 
 export default function WordCloud({ words = [] }) {
   const svgRef = useRef(null);
