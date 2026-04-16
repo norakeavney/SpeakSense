@@ -40,7 +40,14 @@ _EXTRA_STOPWORDS = {
     "well","just","like","yeah","okay","right"
 }
 
-ALL_STOPWORDS = _BASIC_STOPWORDS.union(_EXTRA_STOPWORDS)
+_DEBATE_STOPWORDS = {
+    "actually", "basically", "literally", "maybe", "probably", "stuff",
+    "kinda", "sorta", "guess", "around", "almost", "sort", "kind",
+    "means", "mean", "anyway", "anyways", "stuff", "things", "something",
+    "someone", "everybody", "everyone", "nobody", "somebody"
+}
+
+ALL_STOPWORDS = _BASIC_STOPWORDS.union(_EXTRA_STOPWORDS).union(_DEBATE_STOPWORDS)
 
 
 # ─────────────────────────────────────────────
@@ -194,6 +201,21 @@ def extract_topics(
 
             if all(w in ALL_STOPWORDS for w in words):
                 continue
+
+            if len(words) == 1:
+                word = words[0]
+
+                if word in ALL_STOPWORDS:
+                    continue
+
+                if word in {
+                    "very", "about", "there", "where", "some", "doing", "real", "long",
+                    "term", "shape", "thing", "things", "people"
+                }:
+                    continue
+
+                if score < 0.5:
+                    continue
 
             if phrase in seen:
                 continue
