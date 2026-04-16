@@ -24,6 +24,40 @@ body {
     rgb(var(--background-start-rgb));
 }
 
+@media print {
+  body {
+    background: white;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  .tab-content,
+  .tab-content.hidden {
+    display: block !important;
+  }
+
+  .page-break {
+    display: block !important;
+    page-break-before: always;
+  }
+
+  .print-expand {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg {
+    box-shadow: none !important;
+  }
+}
+
 html.dark .bg-white {
   background-color: rgb(17, 24, 39);
 }

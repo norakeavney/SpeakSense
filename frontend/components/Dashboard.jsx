@@ -46,8 +46,6 @@ const getSpeakerTabColor = (index) => {
 
 export default function Dashboard({ data, onStartNew, autoDownloadRequested = false, onAutoDownloadHandled }) {
   const dashboardRef = useRef(null);
-  const reportRef = useRef(null);
-  const [exportingPdf, setExportingPdf] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   
@@ -103,6 +101,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
       value: metrics.speaking_time_seconds,
     })
   );
+  const totalSpeakingTime = barData.reduce((sum, s) => sum + (s.value || 0), 0);
 
   const selectedSpeakerMetrics =
     activeTab !== 'overview' && activeTab !== 'transcript'
@@ -121,14 +120,6 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
       ? results?.emotion?.speakers?.[activeTab]
       : null;
   const questionsAnalysis = results?.speaker_metrics?.questions_analysis || {};
-
-  // DOMINANCE CALCULATION
-  const totalSpeakingTime = barData.reduce((sum, s) => sum + s.value, 0);
-  const maxSpeakerTime =
-    barData.length > 0 ? Math.max(...barData.map((s) => s.value)) : 0;
-  const dominancePercent = totalSpeakingTime
-    ? Math.round((maxSpeakerTime / totalSpeakingTime) * 100)
-    : 0;
 
   const totalTurns = transcriptTurns.length;
 
@@ -159,164 +150,24 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
   // FILE NAME (IF AVAILABLE)
   const fileName = data.filename || data.job_id || 'analysed Audio';
 
-  const waitForReportReady = async (element) => {
-    const timeoutMs = 8000;
-    const start = Date.now();
-
-    while (Date.now() - start < timeoutMs) {
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      const hasSize = element.offsetWidth > 0 && element.offsetHeight > 0;
-      const chartWrappers = element.querySelectorAll('.recharts-wrapper');
-      const chartsReady =
-        chartWrappers.length === 0 ||
-        Array.from(chartWrappers).every((wrapper) =>
-          wrapper.querySelector('canvas, svg')
-        );
-      const hasContent = element.querySelectorAll('*').length > 0;
-
-      if (hasSize && chartsReady && hasContent) {
-        return true;
-      }
-    }
-
-    return false;
-  };
-
-  const handleExportVisualPdf = async () => {
-    if (exportingPdf || isGeneratingPdf) {
-      return;
-    }
-
-    if (!reportRef.current) {
-      alert('Report is not ready yet. Please try again.');
-      return;
-    }
-
+  const handleDownloadPDF = () => {
     if (data?.status !== 'done') {
       alert('Report is still processing. Please wait until analysis is complete.');
       return;
     }
 
-    try {
-      setExportingPdf(true);
-
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import('html2canvas'),
-        import('jspdf'),
-      ]);
-
-      setIsGeneratingPdf(true);
-
-      reportRef.current.style.position = 'absolute';
-      reportRef.current.style.left = '-9999px';
-      reportRef.current.style.display = 'block';
-      const isReady = await waitForReportReady(reportRef.current);
-
-      if (!isReady) {
-        throw new Error('Report rendering timed out');
-      }
-
-      const pdf = new jsPDF({
-        orientation: 'p',
-        unit: 'mm',
-        format: 'a4',
-      });
-
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 10;
-      const usableWidth = pageWidth - margin * 2;
-      const usableHeight = pageHeight - margin * 2;
-      let cursorY = margin;
-
-      const sections = Array.from(
-        reportRef.current.querySelectorAll('[data-pdf-section="true"]')
-      );
-
-      const addCanvasToPdf = (sectionCanvas) => {
-        const imgHeight = (sectionCanvas.height * usableWidth) / sectionCanvas.width;
-
-        if (imgHeight <= usableHeight && cursorY + imgHeight > pageHeight - margin) {
-          pdf.addPage();
-          cursorY = margin;
-        }
-
-        if (imgHeight <= usableHeight) {
-          const imageData = sectionCanvas.toDataURL('image/png');
-          pdf.addImage(imageData, 'PNG', margin, cursorY, usableWidth, imgHeight);
-          cursorY += imgHeight + 4;
-          return;
-        }
-
-        const sliceHeight = Math.floor((usableHeight * sectionCanvas.width) / usableWidth);
-        let sourceY = 0;
-
-        while (sourceY < sectionCanvas.height) {
-          const currentSliceHeight = Math.min(sliceHeight, sectionCanvas.height - sourceY);
-          const sliceCanvas = document.createElement('canvas');
-          sliceCanvas.width = sectionCanvas.width;
-          sliceCanvas.height = currentSliceHeight;
-          const ctx = sliceCanvas.getContext('2d');
-          ctx.drawImage(
-            sectionCanvas,
-            0,
-            sourceY,
-            sectionCanvas.width,
-            currentSliceHeight,
-            0,
-            0,
-            sectionCanvas.width,
-            currentSliceHeight
-          );
-
-          if (cursorY !== margin) {
-            pdf.addPage();
-            cursorY = margin;
-          }
-
-          const sliceImgHeight = (currentSliceHeight * usableWidth) / sectionCanvas.width;
-          const sliceData = sliceCanvas.toDataURL('image/png');
-          pdf.addImage(sliceData, 'PNG', margin, cursorY, usableWidth, sliceImgHeight);
-
-          sourceY += currentSliceHeight;
-          if (sourceY < sectionCanvas.height) {
-            pdf.addPage();
-            cursorY = margin;
-          }
-        }
-      };
-
-      for (const section of sections) {
-        const canvas = await html2canvas(section, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          windowWidth: reportRef.current.scrollWidth,
-        });
-        addCanvasToPdf(canvas);
-      }
-
-      const safeName = (fileName ? String(fileName) : "analysis-report").replace(/[^a-zA-Z0-9-_]/g, '_');
-      pdf.save(`${safeName || 'analysis-report'}-report.pdf`);
-    } catch (error) {
-      console.error('Failed to export report PDF', error);
-      alert('Failed to export report PDF');
-    } finally {
-      if (reportRef.current) {
-        reportRef.current.style.display = 'none';
-      }
-      setIsGeneratingPdf(false);
-      setExportingPdf(false);
-    }
+    setIsGeneratingPdf(true);
+    window.print();
+    setIsGeneratingPdf(false);
   };
 
   useEffect(() => {
-    if (!autoDownloadRequested || exportingPdf || isGeneratingPdf) {
+    if (!autoDownloadRequested || isGeneratingPdf) {
       return;
     }
 
     const runExport = async () => {
-      await handleExportVisualPdf();
+      await handleDownloadPDF();
       if (onAutoDownloadHandled) {
         onAutoDownloadHandled();
       }
@@ -325,10 +176,194 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
     runExport();
   }, [autoDownloadRequested, exportingPdf, isGeneratingPdf, data?.status]);
 
+  const renderSpeakerSection = (speaker) => {
+    const speakerIndex = speakers.indexOf(speaker);
+    const speakerColor = getSpeakerTabColor(speakerIndex);
+    const speakerMetricsForSpeaker = speakerMetrics[speaker];
+    const speakerTurns = transcriptTurns.filter((turn) => turn.speaker === speaker);
+    const speakerSentiment = results?.speaker_metrics?.sentiment_analysis?.[speaker];
+    const speakerEmotions = results?.emotion?.speakers?.[speaker];
+    const speakerQuestions = questionsAnalysis[speaker];
+    const speakerTopics = results?.topics?.per_speaker_topics?.[speaker];
+    const dominancePercentForSpeaker = totalSpeakingTime
+      ? Math.round(((speakerMetricsForSpeaker?.speaking_time_seconds || 0) / totalSpeakingTime) * 100)
+      : 0;
+
+    return (
+      <>
+        <div
+          className="col-span-12 bg-white rounded-xl p-6 shadow-sm"
+          style={{
+            border: `3px solid ${speakerColor.border}`,
+          }}
+        >
+          <h3 className="text-base font-medium mb-4">{safeReplace(speaker || "Unknown")} Summary</h3>
+          {speakerMetricsForSpeaker ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="border border-gray-200 rounded-lg p-4">
+                <p className="text-xs text-gray-500">Speaking Time</p>
+                <p className="text-lg font-semibold">{Math.round(speakerMetricsForSpeaker.speaking_time_seconds || 0)}s</p>
+              </div>
+              <div className="border border-gray-200 rounded-lg p-4">
+                <p className="text-xs text-gray-500">Speaking Time Share</p>
+                <p className="text-lg font-semibold">{dominancePercentForSpeaker}%</p>
+              </div>
+              <div className="border border-gray-200 rounded-lg p-4">
+                <p className="text-xs text-gray-500">Total Words</p>
+                <p className="text-lg font-semibold">{speakerMetricsForSpeaker.total_words || 0}</p>
+              </div>
+              <div className="border border-gray-200 rounded-lg p-4">
+                <p className="text-xs text-gray-500">Words / Min</p>
+                <p className="text-lg font-semibold">{Math.round(speakerMetricsForSpeaker.words_per_minute || 0)}</p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-gray-400 text-sm">No speaker metrics available.</p>
+          )}
+        </div>
+
+        {speakerSentiment?.overall_sentiment && (
+          <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h3 className="text-base font-medium mb-4">Sentiment</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Positive', value: Math.round((speakerSentiment.overall_sentiment.positive || 0) * 100), color: '#10b981' },
+                    { name: 'Negative', value: Math.round((speakerSentiment.overall_sentiment.negative || 0) * 100), color: '#ef4444' },
+                    { name: 'Neutral', value: Math.round((speakerSentiment.overall_sentiment.neutral || 0) * 100), color: '#6b7280' },
+                  ].filter(d => d.value > 0)}
+                  dataKey="value"
+                  nameKey="name"
+                  outerRadius={90}
+                  isAnimationActive={!isGeneratingPdf}
+                >
+                  {[
+                    { name: 'Positive', value: 0, color: '#10b981' },
+                    { name: 'Negative', value: 0, color: '#ef4444' },
+                    { name: 'Neutral', value: 0, color: '#6b7280' },
+                  ].map((entry, index) => (
+                    <Cell key={`sentiment-${speaker}-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {speakerEmotions && Object.keys(speakerEmotions).length > 0 && (
+          <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h3 className="text-base font-medium mb-4">Emotions</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={Object.entries(speakerEmotions)
+                    .map(([emotion, value]) => ({
+                      name: emotion.charAt(0).toUpperCase() + emotion.slice(1),
+                      value: Math.round(Number(value) * 100),
+                    }))
+                    .filter(d => d.value > 0)}
+                  dataKey="value"
+                  nameKey="name"
+                  outerRadius={90}
+                  isAnimationActive={!isGeneratingPdf}
+                >
+                  {['#ef4444', '#8b5cf6', '#06b6d4', '#fbbf24', '#6b7280', '#3b82f6', '#ec4899'].map((color, idx) => (
+                    <Cell key={`emotion-${speaker}-${idx}`} fill={color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {speakerTopics?.keywords?.length > 0 && (
+          <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h3 className="text-base font-medium mb-4">Topics & Keywords</h3>
+            {speakerTopics.topics?.length > 0 && (
+              <div className="mb-4">
+                <p className="text-sm font-medium text-gray-600 mb-2">Main Topics</p>
+                <div className="flex flex-wrap gap-2">
+                  {speakerTopics.topics.map((topic, idx) => (
+                    <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                      {topic}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <p className="text-sm font-medium text-gray-600 mb-3">Keywords</p>
+            <WordCloud
+              words={filterTokens(speakerTopics.keywords).map((keyword) => ({
+                word: keyword,
+                score: speakerTopics.scores?.[keyword] || 0.5
+              }))}
+              height={280}
+              maxWords={30}
+            />
+          </div>
+        )}
+
+        {speakerQuestions && (
+          <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <h3 className="text-base font-medium mb-4">Communication Style</h3>
+            {speakerQuestions.questions + speakerQuestions.statements > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart
+                    data={[
+                      { name: 'Questions', value: speakerQuestions.questions, fill: '#3b82f6' },
+                      { name: 'Statements', value: speakerQuestions.statements, fill: '#10b981' },
+                    ]}
+                  >
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Bar dataKey="value" isAnimationActive={!isGeneratingPdf} radius={[4, 4, 0, 0]}>
+                      {[
+                        { fill: '#3b82f6' },
+                        { fill: '#10b981' },
+                      ].map((entry, idx) => (
+                        <Cell key={`comm-${speaker}-${idx}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="mt-3 text-xs text-gray-600">
+                  <p>Role: <span className="font-semibold">{speakerQuestions.likely_role || 'Unknown'}</span></p>
+                </div>
+              </>
+            ) : (
+              <p className="text-gray-400 text-sm">No communication data available.</p>
+            )}
+          </div>
+        )}
+
+        <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <h3 className="text-base font-medium mb-4">Transcript Turns</h3>
+          {speakerTurns.length > 0 ? (
+            <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 print-expand">
+              {speakerTurns.map((turn, index) => (
+                <div key={`${speaker}-${turn.start}-${index}`} className="border border-gray-200 rounded-md p-3">
+                  <p className="text-xs text-gray-500 mb-1">{Math.round(turn.start || 0)}s - {Math.round(turn.end || 0)}s</p>
+                  <p className="text-sm text-gray-700">{turn.text}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-400 text-sm">No turns found for this speaker.</p>
+          )}
+        </div>
+      </>
+    );
+  };
+
   // RENDER
   return (
     <>
-    <div className="flex items-end gap-2 mb-6 border-b border-gray-300">
+    <div className="flex items-end gap-2 mb-6 border-b border-gray-300 no-print">
 
       {/* Overview */}
       <button
@@ -402,31 +437,29 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
               {onStartNew && (
                 <button
                   onClick={onStartNew}
-                  className="px-4 py-2 bg-black text-white text-sm rounded-lg hover:bg-gray-800"
+                  className="px-4 py-2 bg-black text-white text-sm rounded-lg hover:bg-gray-800 no-print"
                 >
                   Start New Analysis
                 </button>
               )}
               <button
-                onClick={handleExportVisualPdf}
-                disabled={exportingPdf}
-                className="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50"
+                onClick={handleDownloadPDF}
+                disabled={isGeneratingPdf}
+                className="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50 no-print"
               >
-                {exportingPdf ? 'Preparing PDF...' : 'Download Report PDF'}
+                {isGeneratingPdf ? 'Preparing Print...' : 'Print / Save PDF'}
               </button>
             </div>
           </div>
         </div>
 
-        {activeTab === 'overview' && (
-          <>
+        <div className={`tab-content ${activeTab === 'overview' ? '' : 'hidden'}`}>
             {/* KPI CARDS */}
             {[
               { label: 'Speakers', value: speakerCount },
               { label: 'Duration', value: duration },
               { label: 'Total Words', value: totalWords },
               { label: 'Avg WPM', value: avgWPM },
-              { label: 'Speaking Time Dominance', value: `${dominancePercent}%` },
             ].map((item, i) => (
               <div
                 key={i}
@@ -586,14 +619,15 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
             <div className="col-span-12">
               <SpeakerAnalysis results={results} />
             </div>
-          </>
-        )}
+        </div>
 
-        {activeTab === 'transcript' && (
+        <div className="page-break tab-content hidden"></div>
+
+        <div className={`tab-content ${activeTab === 'transcript' ? '' : 'hidden'}`}>
           <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
             <h3 className="text-base font-medium mb-4">Transcript</h3>
             {transcriptTurns.length > 0 ? (
-              <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1 print-expand">
                 {transcriptTurns.map((turn, index) => (
                   <div key={`${turn.speaker}-${turn.start}-${index}`} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
@@ -608,326 +642,18 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
               <p className="text-gray-400 text-sm">No transcript data available.</p>
             )}
           </div>
-        )}
+        </div>
 
-        {activeTab !== 'overview' && activeTab !== 'transcript' && (
-          <>
-            {(() => {
-              const speakerIndex = speakers.indexOf(activeTab);
-              const speakerColor = getSpeakerTabColor(speakerIndex);
-              return (
-                <div 
-                  className="col-span-12 bg-white rounded-xl p-6 shadow-sm"
-                  style={{
-                    border: `3px solid ${speakerColor.border}`,
-                  }}
-                >
-                  <h3 className="text-base font-medium mb-4">{safeReplace(activeTab || "Unknown")} Summary</h3>
-                  {selectedSpeakerMetrics ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="border border-gray-200 rounded-lg p-4">
-                        <p className="text-xs text-gray-500">Speaking Time</p>
-                        <p className="text-lg font-semibold">{Math.round(selectedSpeakerMetrics.speaking_time_seconds || 0)}s</p>
-                      </div>
-                      <div className="border border-gray-200 rounded-lg p-4">
-                        <p className="text-xs text-gray-500">Total Words</p>
-                        <p className="text-lg font-semibold">{selectedSpeakerMetrics.total_words || 0}</p>
-                      </div>
-                      <div className="border border-gray-200 rounded-lg p-4">
-                        <p className="text-xs text-gray-500">Words / Min</p>
-                        <p className="text-lg font-semibold">{Math.round(selectedSpeakerMetrics.words_per_minute || 0)}</p>
-                      </div>
-                      <div className="border border-gray-200 rounded-lg p-4">
-                        <p className="text-xs text-gray-500">Turns</p>
-                        <p className="text-lg font-semibold">{selectedSpeakerMetrics.num_turns || 0}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-gray-400 text-sm">No speaker metrics available.</p>
-                  )}
-                </div>
-              );
-            })()}
+        <div className="page-break tab-content hidden"></div>
 
-            {/* Sentiment Pie Chart */}
-            {selectedSentiment?.overall_sentiment && (
-              <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                <h3 className="text-base font-medium mb-4">Sentiment</h3>
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie
-                      data={[
-                        { name: 'Positive', value: Math.round((selectedSentiment.overall_sentiment.positive || 0) * 100), color: '#10b981' },
-                        { name: 'Negative', value: Math.round((selectedSentiment.overall_sentiment.negative || 0) * 100), color: '#ef4444' },
-                        { name: 'Neutral', value: Math.round((selectedSentiment.overall_sentiment.neutral || 0) * 100), color: '#6b7280' },
-                      ].filter(d => d.value > 0)}
-                      dataKey="value"
-                      nameKey="name"
-                      outerRadius={90}
-                      isAnimationActive={!isGeneratingPdf}
-                    >
-                      {[
-                        { name: 'Positive', value: 0, color: '#10b981' },
-                        { name: 'Negative', value: 0, color: '#ef4444' },
-                        { name: 'Neutral', value: 0, color: '#6b7280' },
-                      ].map((entry, index) => (
-                        <Cell key={`sentiment-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {/* Emotions Pie Chart */}
-            {selectedSpeakerEmotions && Object.keys(selectedSpeakerEmotions).length > 0 && (
-              <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                <h3 className="text-base font-medium mb-4">Emotions</h3>
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie
-                      data={Object.entries(selectedSpeakerEmotions)
-                        .map(([emotion, value]) => ({
-                          name: emotion.charAt(0).toUpperCase() + emotion.slice(1),
-                          value: Math.round(Number(value) * 100),
-                        }))
-                        .filter(d => d.value > 0)}
-                      dataKey="value"
-                      nameKey="name"
-                      outerRadius={90}
-                      isAnimationActive={!isGeneratingPdf}
-                    >
-                      {['#ef4444', '#8b5cf6', '#06b6d4', '#fbbf24', '#6b7280', '#3b82f6', '#ec4899'].map((color, idx) => (
-                        <Cell key={`emotion-${idx}`} fill={color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {/* Per-Speaker Topics */}
-            {results?.topics?.per_speaker_topics?.[activeTab]?.keywords?.length > 0 && (
-              <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                <h3 className="text-base font-medium mb-4">Topics & Keywords</h3>
-                {results.topics.per_speaker_topics[activeTab].topics?.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-sm font-medium text-gray-600 mb-2">Main Topics</p>
-                    <div className="flex flex-wrap gap-2">
-                      {results.topics.per_speaker_topics[activeTab].topics.map((topic, idx) => (
-                        <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                          {topic}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <p className="text-sm font-medium text-gray-600 mb-3">Keywords</p>
-                <WordCloud 
-                  words={filterTokens(results.topics.per_speaker_topics[activeTab].keywords).map((keyword) => ({
-                    word: keyword,
-                    score: results.topics.per_speaker_topics[activeTab].scores?.[keyword] || 0.5
-                  }))}
-                  height={280}
-                  maxWords={30}
-                />
-              </div>
-            )}
-
-            {/* Questions vs Statements */}
-            {questionsAnalysis[activeTab] && (
-              <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                <h3 className="text-base font-medium mb-4">Communication Style</h3>
-                {questionsAnalysis[activeTab].questions + questionsAnalysis[activeTab].statements > 0 ? (
-                  <>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <BarChart
-                        data={[
-                          { name: 'Questions', value: questionsAnalysis[activeTab].questions, fill: '#3b82f6' },
-                          { name: 'Statements', value: questionsAnalysis[activeTab].statements, fill: '#10b981' },
-                        ]}
-                      >
-                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                        <YAxis tick={{ fontSize: 12 }} />
-                        <Tooltip />
-                        <Bar dataKey="value" isAnimationActive={!isGeneratingPdf} radius={[4, 4, 0, 0]}>
-                          {[
-                            { fill: '#3b82f6' },
-                            { fill: '#10b981' },
-                          ].map((entry, idx) => (
-                            <Cell key={`comm-${idx}`} fill={entry.fill} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                    <div className="mt-3 text-xs text-gray-600">
-                      <p>Role: <span className="font-semibold">{questionsAnalysis[activeTab].likely_role || 'Unknown'}</span></p>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-gray-400 text-sm">No communication data available.</p>
-                )}
-              </div>
-            )}
-
-            <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-              <h3 className="text-base font-medium mb-4">Transcript Turns</h3>
-              {selectedSpeakerTurns.length > 0 ? (
-                <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
-                  {selectedSpeakerTurns.map((turn, index) => (
-                    <div key={`${activeTab}-${turn.start}-${index}`} className="border border-gray-200 rounded-md p-3">
-                      <p className="text-xs text-gray-500 mb-1">{Math.round(turn.start || 0)}s - {Math.round(turn.end || 0)}s</p>
-                      <p className="text-sm text-gray-700">{turn.text}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-400 text-sm">No turns found for this speaker.</p>
-              )}
+        {speakers.map((speaker, index) => (
+          <React.Fragment key={speaker}>
+            {index > 0 && <div className="page-break tab-content hidden"></div>}
+            <div className={`tab-content ${activeTab === speaker ? '' : 'hidden'}`}>
+              {renderSpeakerSection(speaker)}
             </div>
-          </>
-        )}
-        </div>
-      </div>
-      <div
-        ref={reportRef}
-        style={{ display: 'none' }}
-        className="bg-white text-black w-[1200px] p-10"
-      >
-        <h2
-          className="text-xl font-bold mt-10 mb-4 border-b pb-2"
-          data-pdf-section="true"
-        >
-          Speaker Behaviour Analysis
-        </h2>
-        <div className="mb-8 border-b pb-4" data-pdf-section="true">
-          <h1 className="text-3xl font-bold">SpeakSense Analysis Report</h1>
-          <p className="text-gray-600 mt-2">{fileName}</p>
-          <p className="text-sm text-gray-500">
-            Generated on {new Date().toLocaleString()}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-4 gap-4 mb-8" data-pdf-section="true">
-          {[
-            { label: 'Speakers', value: speakerCount },
-            { label: 'Duration', value: duration },
-            { label: 'Total Words', value: totalWords },
-            { label: 'Avg WPM', value: avgWPM },
-          ].map((item, i) => (
-            <div key={i} className="border rounded-lg p-4">
-              <p className="text-sm text-gray-500 uppercase">{item.label}</p>
-              <p className="text-2xl font-semibold mt-2">{item.value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-2 gap-6 mb-8" data-pdf-section="true">
-          <div className="border rounded-xl p-6">
-            <h2 className="text-lg font-semibold mb-4">Emotion Distribution</h2>
-            {pieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={110}>
-                    {pieData.map((entry, index) => (
-                      <Cell
-                        key={`pdf-pie-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-gray-400 text-sm">No emotion data available.</p>
-            )}
-          </div>
-
-          <div className="border rounded-xl p-6">
-            <h2 className="text-lg font-semibold mb-4">Speaker Activity</h2>
-            {barData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={barData}>
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-gray-400 text-sm">No speaker metrics available.</p>
-            )}
-          </div>
-        </div>
-
-        <div className="border rounded-xl p-6 mb-8" data-pdf-section="true">
-          <h2 className="text-lg font-semibold mb-4">Topics & Keywords</h2>
-          {results.topics?.keywords?.length ? (
-            <div>
-              <div className="mb-4">
-                <h3 className="text-sm font-medium mb-2">Main Topics:</h3>
-                <div className="flex flex-wrap gap-2">
-                  {(results.topics.main_topics || []).slice(0, 10).map((topic, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full border border-blue-200"
-                    >
-                      {topic}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium mb-2">All Keywords:</h3>
-                <div className="flex flex-wrap gap-2">
-                  {filterTokens(results.topics.keywords).slice(0, 20).map((keyword, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-gray-100 text-sm rounded-full border"
-                    >
-                      {keyword}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-gray-400 text-sm">No topic data available.</p>
-          )}
-        </div>
-
-        <div className="border rounded-xl p-6 mb-8" data-pdf-section="true">
-          <h2 className="text-lg font-semibold mb-4">Basic Speaker Metrics</h2>
-          <div className="space-y-4">
-            {Object.entries(speakerMetrics).map(([speaker, metrics]) => (
-              <div key={speaker} className="border rounded-lg p-4">
-                <h3 className="font-semibold mb-2">{speaker}</h3>
-                <p>Speaking time: {metrics.speaking_time_seconds ?? 0}s</p>
-                <p>Words: {metrics.total_words ?? 0}</p>
-                <p>WPM: {Math.round(metrics.words_per_minute ?? 0)}</p>
-                <p>Turns: {metrics.num_turns ?? 0}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border rounded-xl p-6 mb-8" data-pdf-section="true">
-          <h2 className="text-lg font-semibold mb-4">Sentiment Analysis</h2>
-
-          {results?.speaker_metrics?.sentiment_analysis &&
-            Object.entries(results.speaker_metrics.sentiment_analysis).map(
-              ([speaker, sentiment]) => (
-                <div key={speaker} className="border rounded-lg p-4 mb-3">
-                  <h3 className="font-semibold">{speaker}</h3>
-                  <p>Positive: {(sentiment.overall_sentiment.positive * 100).toFixed(1)}%</p>
-                  <p>Negative: {(sentiment.overall_sentiment.negative * 100).toFixed(1)}%</p>
-                  <p>Neutral: {(sentiment.overall_sentiment.neutral * 100).toFixed(1)}%</p>
-                </div>
-              )
-            )}
+          </React.Fragment>
+        ))}
         </div>
       </div>
     </>
