@@ -454,6 +454,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
         </div>
 
         <div className={`tab-content col-span-12 ${activeTab === 'overview' ? 'block' : 'hidden'}`}>
+          <div className="grid grid-cols-12 gap-6">
             {/* KPI CARDS */}
             {[
               { label: 'Speakers', value: speakerCount },
@@ -619,28 +620,31 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
             <div className="col-span-12">
               <SpeakerAnalysis results={results} />
             </div>
+          </div>
         </div>
 
         <div className="page-break col-span-12"></div>
 
         <div className={`tab-content col-span-12 ${activeTab === 'transcript' ? 'block' : 'hidden'}`}>
-          <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-            <h3 className="text-base font-medium mb-4">Transcript</h3>
-            {transcriptTurns.length > 0 ? (
-              <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1 print-expand">
-                {transcriptTurns.map((turn, index) => (
-                  <div key={`${turn.speaker}-${turn.start}-${index}`} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-gray-800">{turn.speaker}</span>
-                      <span className="text-xs text-gray-500">{Math.round(turn.start || 0)}s - {Math.round(turn.end || 0)}s</span>
+          <div className="grid grid-cols-12 gap-6">
+            <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <h3 className="text-base font-medium mb-4">Transcript</h3>
+              {transcriptTurns.length > 0 ? (
+                <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1 print-expand">
+                  {transcriptTurns.map((turn, index) => (
+                    <div key={`${turn.speaker}-${turn.start}-${index}`} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-gray-800">{turn.speaker}</span>
+                        <span className="text-xs text-gray-500">{Math.round(turn.start || 0)}s - {Math.round(turn.end || 0)}s</span>
+                      </div>
+                      <p className="text-sm text-gray-700">{turn.text}</p>
                     </div>
-                    <p className="text-sm text-gray-700">{turn.text}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-400 text-sm">No transcript data available.</p>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">No transcript data available.</p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -650,7 +654,9 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
           <React.Fragment key={speaker}>
             {index > 0 && <div className="page-break col-span-12"></div>}
             <div className={`tab-content col-span-12 ${activeTab === speaker ? 'block' : 'hidden'}`}>
-              {renderSpeakerSection(speaker)}
+              <div className="grid grid-cols-12 gap-6">
+                {renderSpeakerSection(speaker)}
+              </div>
             </div>
           </React.Fragment>
         ))}
