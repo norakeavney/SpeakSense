@@ -174,7 +174,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
     };
 
     runExport();
-  }, [autoDownloadRequested, exportingPdf, isGeneratingPdf, data?.status]);
+  }, [autoDownloadRequested, isGeneratingPdf, data?.status]);
 
   const renderSpeakerSection = (speaker) => {
     const speakerIndex = speakers.indexOf(speaker);
