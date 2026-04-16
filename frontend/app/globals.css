@@ -24,6 +24,10 @@ body {
     rgb(var(--background-start-rgb));
 }
 
+.page-break {
+  display: none;
+}
+
 @media print {
   body {
     background: white;

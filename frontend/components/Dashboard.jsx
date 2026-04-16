@@ -453,7 +453,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
           </div>
         </div>
 
-        <div className={`tab-content ${activeTab === 'overview' ? '' : 'hidden'}`}>
+        <div className={`tab-content col-span-12 ${activeTab === 'overview' ? 'block' : 'hidden'}`}>
             {/* KPI CARDS */}
             {[
               { label: 'Speakers', value: speakerCount },
@@ -621,9 +621,9 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
             </div>
         </div>
 
-        <div className="page-break tab-content hidden"></div>
+        <div className="page-break col-span-12"></div>
 
-        <div className={`tab-content ${activeTab === 'transcript' ? '' : 'hidden'}`}>
+        <div className={`tab-content col-span-12 ${activeTab === 'transcript' ? 'block' : 'hidden'}`}>
           <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
             <h3 className="text-base font-medium mb-4">Transcript</h3>
             {transcriptTurns.length > 0 ? (
@@ -644,12 +644,12 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
           </div>
         </div>
 
-        <div className="page-break tab-content hidden"></div>
+        <div className="page-break col-span-12"></div>
 
         {speakers.map((speaker, index) => (
           <React.Fragment key={speaker}>
-            {index > 0 && <div className="page-break tab-content hidden"></div>}
-            <div className={`tab-content ${activeTab === speaker ? '' : 'hidden'}`}>
+            {index > 0 && <div className="page-break col-span-12"></div>}
+            <div className={`tab-content col-span-12 ${activeTab === speaker ? 'block' : 'hidden'}`}>
               {renderSpeakerSection(speaker)}
             </div>
           </React.Fragment>
