@@ -97,6 +97,23 @@ def _clean_segments(segments: list) -> str:
 
 
 # ─────────────────────────────────────────────
+# SELECT TOP SEGMENTS (BY LENGTH) FOR TOPIC EXTRACTION
+# ─────────────────────────────────────────────
+def _select_top_segments(segments: list, max_segments: int = 20) -> str:
+    if not segments:
+        return ""
+
+    sorted_segs = sorted(
+        segments,
+        key=lambda s: len((s.get("text") or "").split()),
+        reverse=True
+    )
+
+    top = sorted_segs[:max_segments]
+    return " ".join(_clean_text(s.get("text", "")) for s in top)
+
+
+# ─────────────────────────────────────────────
 # FALLBACK TOPIC EXTRACTION (SIMPLE FREQUENCY)
 # ─────────────────────────────────────────────
 def _fallback_topics(text: str, max_topics: int, max_keywords: int) -> dict:
@@ -130,7 +147,7 @@ def extract_topics(
     diversity: float = 0.7
 ) -> dict:
 
-    source_text = _clean_segments(segments) if segments else _clean_text(text)
+    source_text = _select_top_segments(segments) if segments else _clean_text(text)
 
     if not source_text:
         return {"main_topics": [], "keywords": [], "method": "none"}
@@ -148,12 +165,13 @@ def extract_topics(
             print(f"✓ KeyBERT ready")
 
         # STEP 1: Extract candidates
+        min_df = 2 if len(source_text.split()) > 300 else 1
         raw = _kw_model.extract_keywords(
             source_text,
             vectorizer=CountVectorizer(
+                stop_words='english',
                 ngram_range=(1, 2),
-                stop_words=list(ALL_STOPWORDS),
-                token_pattern=r"(?u)\b[a-zA-Z]{4,}\b"
+                min_df=min_df
             ),
             use_mmr=True,
             diversity=diversity,
@@ -183,6 +201,7 @@ def extract_topics(
             seen.add(phrase)
             final.append((phrase, score))
 
+        final.sort(key=lambda x: x[1], reverse=True)
         keywords = [p for p, _ in final]
 
         # STEP 3: Link to segments (for frontend)

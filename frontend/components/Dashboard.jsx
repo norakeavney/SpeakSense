@@ -130,6 +130,8 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
     ? Math.round((maxSpeakerTime / totalSpeakingTime) * 100)
     : 0;
 
+  const totalTurns = transcriptTurns.length;
+
   // KPI CALCULATIONS
   const totalWords = Object.values(speakerMetrics).reduce(
     (sum, s) => sum + (s.total_words || 0),
@@ -393,7 +395,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
             <div>
               <h2 className="text-xl font-semibold">{fileName}</h2>
               <p className="text-sm text-gray-500 mt-1">
-                Bias Index — Speaking Time Dominance
+                Conversation Overview
               </p>
             </div>
             <div className="ml-auto flex items-center space-x-4">
@@ -412,20 +414,6 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
               >
                 {exportingPdf ? 'Preparing PDF...' : 'Download Report PDF'}
               </button>
-              <div className="w-64">
-                <p className="text-sm text-gray-500 mb-2 text-right">
-                  Dominance Level
-                </p>
-                <div className="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
-                  <div
-                    className="h-3 bg-blue-600 transition-all duration-500"
-                    style={{ width: `${dominancePercent || 0}%` }}
-                  />
-                </div>
-                <p className="text-right text-sm mt-1 font-medium">
-                  {dominancePercent}%
-                </p>
-              </div>
             </div>
           </div>
         </div>
@@ -438,6 +426,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
               { label: 'Duration', value: duration },
               { label: 'Total Words', value: totalWords },
               { label: 'Avg WPM', value: avgWPM },
+              { label: 'Speaking Time Dominance', value: `${dominancePercent}%` },
             ].map((item, i) => (
               <div
                 key={i}
