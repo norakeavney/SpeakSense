@@ -280,37 +280,6 @@ export const renameReport = async (jobId, payload) => {
 };
 
 /**
- * Download report as PDF
- */
-export const downloadReportPdf = async (jobId) => {
-  try {
-    const response = await authenticatedFetch(`${API_BASE_URL}/user/reports/${jobId}/download/`, {
-      method: 'GET',
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to download report PDF');
-    }
-
-    const blob = await response.blob();
-    const objectUrl = window.URL.createObjectURL(blob);
-    const contentDisposition = response.headers.get('Content-Disposition') || '';
-    const filenameMatch = contentDisposition.match(/filename="?([^\"]+)"?/i);
-    const filename = filenameMatch?.[1] || `report-${jobId}.pdf`;
-
-    const link = document.createElement('a');
-    link.href = objectUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(objectUrl);
-  } catch (error) {
-    throw error;
-  }
-};
-
-/**
  * Upload audio file to backend (requires authentication)
  * @param {File} file - Audio file to upload
  * @param {string} title - Optional title for the audio

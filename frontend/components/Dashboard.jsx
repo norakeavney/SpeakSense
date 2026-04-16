@@ -56,6 +56,12 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
     return String(text).replace(/_/g, " ");
   };
 
+  const filterTokens = (tokens = []) =>
+    tokens
+      .map((t) => String(t || '').trim().toLowerCase())
+      .filter((t) => /^[a-zA-Z]+(?:\s[a-zA-Z]+){0,2}$/.test(t))
+      .filter((t) => t.split(' ').every((word) => word.length >= 4));
+
   if (!data || !data.results) {
     return (
       <div className="p-10 text-center text-gray-500">
@@ -151,8 +157,41 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
   // FILE NAME (IF AVAILABLE)
   const fileName = data.filename || data.job_id || 'analysed Audio';
 
+  const waitForReportReady = async (element) => {
+    const timeoutMs = 8000;
+    const start = Date.now();
+
+    while (Date.now() - start < timeoutMs) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const hasSize = element.offsetWidth > 0 && element.offsetHeight > 0;
+      const chartWrappers = element.querySelectorAll('.recharts-wrapper');
+      const chartsReady =
+        chartWrappers.length === 0 ||
+        Array.from(chartWrappers).every((wrapper) =>
+          wrapper.querySelector('canvas, svg')
+        );
+      const hasContent = element.querySelectorAll('*').length > 0;
+
+      if (hasSize && chartsReady && hasContent) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   const handleExportVisualPdf = async () => {
-    if (!reportRef.current || exportingPdf) {
+    if (exportingPdf || isGeneratingPdf) {
+      return;
+    }
+
+    if (!reportRef.current) {
+      alert('Report is not ready yet. Please try again.');
+      return;
+    }
+
+    if (data?.status !== 'done') {
+      alert('Report is still processing. Please wait until analysis is complete.');
       return;
     }
 
@@ -166,21 +205,15 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
 
       setIsGeneratingPdf(true);
 
+      reportRef.current.style.position = 'absolute';
+      reportRef.current.style.left = '-9999px';
       reportRef.current.style.display = 'block';
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const isReady = await waitForReportReady(reportRef.current);
 
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        windowWidth: reportRef.current.scrollWidth,
-      });
+      if (!isReady) {
+        throw new Error('Report rendering timed out');
+      }
 
-      // Hide it again after capture
-      setIsGeneratingPdf(false);
-      reportRef.current.style.display = 'none';
-
-      const imageData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'p',
         unit: 'mm',
@@ -189,49 +222,106 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
 
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const imageWidth = pageWidth;
-      const imageHeight = (canvas.height * imageWidth) / canvas.width;
+      const margin = 10;
+      const usableWidth = pageWidth - margin * 2;
+      const usableHeight = pageHeight - margin * 2;
+      let cursorY = margin;
 
-      let heightLeft = imageHeight;
-      let position = 0;
+      const sections = Array.from(
+        reportRef.current.querySelectorAll('[data-pdf-section="true"]')
+      );
 
-      pdf.addImage(imageData, 'PNG', 0, position, imageWidth, imageHeight);
-      heightLeft -= pageHeight;
+      const addCanvasToPdf = (sectionCanvas) => {
+        const imgHeight = (sectionCanvas.height * usableWidth) / sectionCanvas.width;
 
-      while (heightLeft > 0) {
-        position = heightLeft - imageHeight;
-        pdf.addPage();
-        pdf.addImage(imageData, 'PNG', 0, position, imageWidth, imageHeight);
-        heightLeft -= pageHeight;
+        if (imgHeight <= usableHeight && cursorY + imgHeight > pageHeight - margin) {
+          pdf.addPage();
+          cursorY = margin;
+        }
+
+        if (imgHeight <= usableHeight) {
+          const imageData = sectionCanvas.toDataURL('image/png');
+          pdf.addImage(imageData, 'PNG', margin, cursorY, usableWidth, imgHeight);
+          cursorY += imgHeight + 4;
+          return;
+        }
+
+        const sliceHeight = Math.floor((usableHeight * sectionCanvas.width) / usableWidth);
+        let sourceY = 0;
+
+        while (sourceY < sectionCanvas.height) {
+          const currentSliceHeight = Math.min(sliceHeight, sectionCanvas.height - sourceY);
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = sectionCanvas.width;
+          sliceCanvas.height = currentSliceHeight;
+          const ctx = sliceCanvas.getContext('2d');
+          ctx.drawImage(
+            sectionCanvas,
+            0,
+            sourceY,
+            sectionCanvas.width,
+            currentSliceHeight,
+            0,
+            0,
+            sectionCanvas.width,
+            currentSliceHeight
+          );
+
+          if (cursorY !== margin) {
+            pdf.addPage();
+            cursorY = margin;
+          }
+
+          const sliceImgHeight = (currentSliceHeight * usableWidth) / sectionCanvas.width;
+          const sliceData = sliceCanvas.toDataURL('image/png');
+          pdf.addImage(sliceData, 'PNG', margin, cursorY, usableWidth, sliceImgHeight);
+
+          sourceY += currentSliceHeight;
+          if (sourceY < sectionCanvas.height) {
+            pdf.addPage();
+            cursorY = margin;
+          }
+        }
+      };
+
+      for (const section of sections) {
+        const canvas = await html2canvas(section, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          windowWidth: reportRef.current.scrollWidth,
+        });
+        addCanvasToPdf(canvas);
       }
 
       const safeName = (fileName ? String(fileName) : "analysis-report").replace(/[^a-zA-Z0-9-_]/g, '_');
       pdf.save(`${safeName || 'analysis-report'}-report.pdf`);
     } catch (error) {
-      setError('Failed to export report PDF');
+      console.error('Failed to export report PDF', error);
       alert('Failed to export report PDF');
     } finally {
       if (reportRef.current) {
         reportRef.current.style.display = 'none';
       }
+      setIsGeneratingPdf(false);
       setExportingPdf(false);
     }
   };
 
   useEffect(() => {
-    if (!autoDownloadRequested || exportingPdf) {
+    if (!autoDownloadRequested || exportingPdf || isGeneratingPdf) {
       return;
     }
 
-    const timer = setTimeout(async () => {
+    const runExport = async () => {
       await handleExportVisualPdf();
       if (onAutoDownloadHandled) {
         onAutoDownloadHandled();
       }
-    }, 350);
+    };
 
-    return () => clearTimeout(timer);
-  }, [autoDownloadRequested, exportingPdf]);
+    runExport();
+  }, [autoDownloadRequested, exportingPdf, isGeneratingPdf, data?.status]);
 
   // RENDER
   return (
@@ -409,7 +499,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
               <h3 className="text-base font-medium mb-6">Topics Word Cloud</h3>
               {results.topics?.keywords?.length ? (
                 <WordCloud 
-                  words={results.topics.keywords.map((keyword) => ({
+                  words={filterTokens(results.topics.keywords).map((keyword) => ({
                     word: keyword,
                     score: results.topics.scores?.[keyword] || 0.5
                   }))}
@@ -543,7 +633,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
                     border: `3px solid ${speakerColor.border}`,
                   }}
                 >
-                  <h3 className="text-base font-medium mb-4">{safeReplace(activeTab || "Unknown")} Summary Summary</h3>
+                  <h3 className="text-base font-medium mb-4">{safeReplace(activeTab || "Unknown")} Summary</h3>
                   {selectedSpeakerMetrics ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="border border-gray-200 rounded-lg p-4">
@@ -647,7 +737,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
                 )}
                 <p className="text-sm font-medium text-gray-600 mb-3">Keywords</p>
                 <WordCloud 
-                  words={results.topics.per_speaker_topics[activeTab].keywords.map((keyword) => ({
+                  words={filterTokens(results.topics.per_speaker_topics[activeTab].keywords).map((keyword) => ({
                     word: keyword,
                     score: results.topics.per_speaker_topics[activeTab].scores?.[keyword] || 0.5
                   }))}
@@ -717,10 +807,13 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
         style={{ display: 'none' }}
         className="bg-white text-black w-[1200px] p-10"
       >
-        <h2 className="text-xl font-bold mt-10 mb-4 border-b pb-2">
+        <h2
+          className="text-xl font-bold mt-10 mb-4 border-b pb-2"
+          data-pdf-section="true"
+        >
           Speaker Behaviour Analysis
         </h2>
-        <div className="mb-8 border-b pb-4">
+        <div className="mb-8 border-b pb-4" data-pdf-section="true">
           <h1 className="text-3xl font-bold">SpeakSense Analysis Report</h1>
           <p className="text-gray-600 mt-2">{fileName}</p>
           <p className="text-sm text-gray-500">
@@ -728,7 +821,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
           </p>
         </div>
 
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-4 gap-4 mb-8" data-pdf-section="true">
           {[
             { label: 'Speakers', value: speakerCount },
             { label: 'Duration', value: duration },
@@ -742,7 +835,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
           ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-2 gap-6 mb-8" data-pdf-section="true">
           <div className="border rounded-xl p-6">
             <h2 className="text-lg font-semibold mb-4">Emotion Distribution</h2>
             {pieData.length > 0 ? (
@@ -781,7 +874,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
           </div>
         </div>
 
-        <div className="border rounded-xl p-6 mb-8">
+        <div className="border rounded-xl p-6 mb-8" data-pdf-section="true">
           <h2 className="text-lg font-semibold mb-4">Topics & Keywords</h2>
           {results.topics?.keywords?.length ? (
             <div>
@@ -801,7 +894,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
               <div>
                 <h3 className="text-sm font-medium mb-2">All Keywords:</h3>
                 <div className="flex flex-wrap gap-2">
-                  {results.topics.keywords.slice(0, 20).map((keyword, index) => (
+                  {filterTokens(results.topics.keywords).slice(0, 20).map((keyword, index) => (
                     <span
                       key={index}
                       className="px-3 py-1 bg-gray-100 text-sm rounded-full border"
@@ -817,7 +910,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
           )}
         </div>
 
-        <div className="border rounded-xl p-6 mb-8">
+        <div className="border rounded-xl p-6 mb-8" data-pdf-section="true">
           <h2 className="text-lg font-semibold mb-4">Basic Speaker Metrics</h2>
           <div className="space-y-4">
             {Object.entries(speakerMetrics).map(([speaker, metrics]) => (
@@ -832,7 +925,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
           </div>
         </div>
 
-        <div className="border rounded-xl p-6 mb-8">
+        <div className="border rounded-xl p-6 mb-8" data-pdf-section="true">
           <h2 className="text-lg font-semibold mb-4">Sentiment Analysis</h2>
 
           {results?.speaker_metrics?.sentiment_analysis &&

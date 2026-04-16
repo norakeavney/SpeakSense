@@ -218,6 +218,8 @@ def process_job(job_id: str, file_url: str) -> None:
         try:
             logger.info(f"[JOB {job_id}] Extracting topics")
             topics_result = extract_topics(full_text, segments=transcript)
+            logger.info(f"Text Sample for Topic Extraction: {full_text[:200]}")  # Log text sample for debugging
+            logger.info(f"[JOB {job_id}] Extracted {len(topics_result.get('keywords', []))} keywords and {len(topics_result.get('main_topics', []))} main topics")
             logger.info(f"[JOB {job_id}] Topic extraction completed")
 
             update_job(job_id, {
