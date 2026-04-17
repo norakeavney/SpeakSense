@@ -123,21 +123,25 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
 
   const totalTurns = transcriptTurns.length;
 
+  const realSpeakers = Object.entries(speakerMetrics).filter(
+    ([_, s]) => (s.speaking_time_seconds || 0) > 0
+  );
+
   // KPI CALCULATIONS
-  const totalWords = Object.values(speakerMetrics).reduce(
-    (sum, s) => sum + (s.total_words || 0),
+  const totalWords = realSpeakers.reduce(
+    (sum, [_, s]) => sum + (s.total_words || 0),
     0
   );
   const avgWPM =
-    Object.keys(speakerMetrics).length > 0
+    realSpeakers.length > 0
       ? Math.round(
-          Object.values(speakerMetrics).reduce(
-            (sum, s) => sum + (s.words_per_minute || 0),
+          realSpeakers.reduce(
+            (sum, [_, s]) => sum + (s.words_per_minute || 0),
             0
-          ) / Object.keys(speakerMetrics).length
+          ) / realSpeakers.length
         )
       : 0;
-  const speakerCount = Object.keys(speakerMetrics).length;
+  const speakerCount = realSpeakers.length;
   const duration =
     results.diarization?.transcript?.length > 0
       ? `${Math.round(
@@ -148,7 +152,15 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
       : 'N/A';
 
   // FILE NAME (IF AVAILABLE)
-  const fileName = data.filename || data.job_id || 'analysed Audio';
+  const fileName =
+    data.title ||
+    data.filename ||
+    data.original_filename ||
+    data.job_id ||
+    'Analysed Audio';
+  const displayName = fileName.includes('-')
+    ? fileName.split('-').slice(0, 2).join(' ')
+    : fileName;
 
   const handleDownloadPDF = () => {
     if (data?.status !== 'done') {
@@ -428,7 +440,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
         <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
           <div className="flex items-center">
             <div>
-              <h2 className="text-xl font-semibold">{fileName}</h2>
+              <h2 className="text-xl font-semibold">{displayName}</h2>
               <p className="text-sm text-gray-500 mt-1">
                 Conversation Overview
               </p>

@@ -29,10 +29,20 @@ body {
 }
 
 @media print {
+  @page {
+    margin: 20mm;
+  }
+
   body {
     background: white;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  header,
+  footer,
+  body::after {
+    display: none !important;
   }
 
   button,

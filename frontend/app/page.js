@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import AuthFlow from '../components/AuthFlow';
 import AuthenticatedLayout from '../components/AuthenticatedLayout';
@@ -9,6 +9,7 @@ import AnalysisProgress from '../components/AnalysisProgress';
 import Dashboard from '../components/Dashboard';
 import UserReports from '../components/UserReports';
 import Settings from '../components/Settings';
+import { getAnalysisStatus } from '../lib/api';
 
 export default function HomePage() {
   const { isLoggedIn, loading } = useAuth();
@@ -17,6 +18,32 @@ export default function HomePage() {
   const [jobId, setJobId] = useState(null);
   const [analysisData, setAnalysisData] = useState(null);
   const [autoDownloadRequested, setAutoDownloadRequested] = useState(false);
+
+  useEffect(() => {
+    if (!analysisData?.job_id || analysisData?.status === 'done') {
+      return;
+    }
+
+    let intervalId;
+
+    const pollStatus = async () => {
+      try {
+        const latest = await getAnalysisStatus(analysisData.job_id);
+        setAnalysisData(latest);
+
+        if (latest.status === 'done') {
+          clearInterval(intervalId);
+        }
+      } catch (error) {
+        clearInterval(intervalId);
+      }
+    };
+
+    pollStatus();
+    intervalId = setInterval(pollStatus, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [analysisData?.job_id, analysisData?.status]);
 
   // Handle page changes in authenticated view
   const handlePageChange = (page) => {
