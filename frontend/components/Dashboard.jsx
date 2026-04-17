@@ -154,9 +154,9 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
   // FILE NAME (IF AVAILABLE)
   const fileName =
     data.title ||
-    data.filename ||
-    data.original_filename ||
-    data.job_id ||
+    data.audio_info?.title ||
+    data.file_ref?.split('/').pop()?.split('.')[0] ||
+    data.job_id?.slice(0, 8) ||
     'Analysed Audio';
   const displayName = fileName.includes('-')
     ? fileName.split('-').slice(0, 2).join(' ')

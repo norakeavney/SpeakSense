@@ -369,6 +369,7 @@ def analysis_status(request, job_id):
             'status': job['status'],
             'steps': job['steps'],
             'results': job.get('results', {}),
+            'title': job.get('title'),
             'speaker_confirmations': job.get('speaker_confirmations', {}),
             'error': job.get('error'),
             'created_at': job['created_at'].isoformat() if job.get('created_at') else None,
@@ -532,6 +533,8 @@ def user_reports(request):
         
         # Also get associated audio file info
         audio_collection = db['audio_files']
+        jobs_collection = db['analysis_jobs']
+        jobs_collection = db['analysis_jobs']
         
         # Enrich jobs with audio file details
         for job in user_jobs:
@@ -695,6 +698,7 @@ def rename_user_report(request, job_id):
 
         db = mongodb.connect()
         audio_collection = db['audio_files']
+        jobs_collection = db['analysis_jobs']
 
         updates = {}
         if new_title:
@@ -702,10 +706,17 @@ def rename_user_report(request, job_id):
         if new_filename:
             updates['original_filename'] = new_filename
 
-        audio_collection.update_one(
-            {'_id': ObjectId(job['audio_id'])},
-            {'$set': updates}
-        )
+        if updates:
+            audio_collection.update_one(
+                {'_id': ObjectId(job['audio_id'])},
+                {'$set': updates}
+            )
+
+        if new_title:
+            jobs_collection.update_one(
+                {'job_id': job_id},
+                {'$set': {'title': new_title}}
+            )
 
         return Response({
             'message': 'Report renamed successfully',
