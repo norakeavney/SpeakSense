@@ -60,6 +60,79 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
       .filter((t) => /^[a-zA-Z]+(?:\s[a-zA-Z]+){0,2}$/.test(t))
       .filter((t) => t.split(' ').every((word) => word.length >= 4));
 
+  // Political alignment helpers
+  const clamp = (value, min = -1, max = 1) => Math.min(Math.max(value, min), max);
+
+  const getOverallAxisPosition = (oneDimensional = {}) => {
+    const scores = oneDimensional?.scores || {};
+    const left = Number(scores["left-wing politics"] || 0);
+    const centre = Number(scores["centrist politics"] || 0);
+    const right = Number(scores["right-wing politics"] || 0);
+
+    const total = left + centre + right;
+    if (!total) return 0;
+
+    // left = -1, centre = 0, right = +1
+    return clamp((right - left) / total);
+  };
+
+  const getOverallLeanLabel = (position) => {
+    const abs = Math.abs(position);
+
+    if (abs < 0.15) return "Broadly centrist";
+    if (abs < 0.35) return position < 0 ? "Slightly left-leaning" : "Slightly right-leaning";
+    if (abs < 0.65) return position < 0 ? "Moderately left-leaning" : "Moderately right-leaning";
+    return position < 0 ? "Strongly left-leaning" : "Strongly right-leaning";
+  };
+
+  const getAxisPercentFromCentre = (position) => {
+    return Math.round(Math.abs(position) * 100);
+  };
+
+  const describeEconomicAxis = (axis) => {
+    if (axis == null) return "No estimate available";
+    if (Math.abs(axis) < 0.2) return "Mixed / near centre";
+    return axis < 0 ? "State / redistributive" : "Market / free economy";
+  };
+
+  const describeSocialAxis = (axis) => {
+    if (axis == null) return "No estimate available";
+    if (Math.abs(axis) < 0.2) return "Mixed / near centre";
+    return axis < 0 ? "Liberal / progressive" : "Traditional / conservative";
+  };
+
+  const buildPoliticalSummary = (position, econAxis, socialAxis) => {
+    return `${getOverallLeanLabel(position)}, economically ${describeEconomicAxis(econAxis).toLowerCase()}, and socially ${describeSocialAxis(socialAxis).toLowerCase()}.`;
+  };
+
+  const getGradientColor = (position) => {
+    const normalized = Math.max(-1, Math.min(1, position));
+    if (normalized < -0.3) {
+      const intensity = (normalized + 1) / 1.7;
+      return `rgb(${Math.round(37 + (intensity * 100))}, ${Math.round(99 + (intensity * 100))}, ${Math.round(235 + (intensity * 20))})`;
+    } else if (normalized > 0.3) {
+      const intensity = (normalized) / 1.7;
+      return `rgb(${Math.round(239 + (intensity * 16))}, ${Math.round(68 + (intensity * 50))}, ${Math.round(68 + (intensity * 50))})`;
+    } else {
+      return '#9ca3af';
+    }
+  };
+
+  const getPoliticalTraits = (position, econAxis, socialAxis) => {
+    const traits = [];
+    if (econAxis != null) {
+      if (econAxis < -0.2) traits.push('Redistributive');
+      else if (econAxis > 0.2) traits.push('Market-oriented');
+      else traits.push('Mixed economy');
+    }
+    if (socialAxis != null) {
+      if (socialAxis < -0.2) traits.push('Progressive');
+      else if (socialAxis > 0.2) traits.push('Traditional');
+      else traits.push('Moderate');
+    }
+    return traits;
+  };
+
   if (!data || !data.results) {
     return (
       <div className="p-10 text-center text-gray-500">
@@ -575,10 +648,8 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
             <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
               <h3 className="text-base font-medium mb-6">Political Alignment</h3>
               <p className="text-xs text-gray-500 mb-6">
-                This analysis estimates political tendencies using a zero-shot classification model.
-                Scores range from -1 to +1:
-                Economic axis: -1 = state/redistributive, +1 = market-oriented.
-                Social axis: -1 = liberal/progressive, +1 = traditional/conservative.
+                This section gives an estimated overview of each speaker's political tendency based on language patterns in the conversation.
+                The top scale shows overall left–centre–right positioning, while the economic and social indicators below provide more detailed breakdowns.
               </p>
               {politicalSpeakers.length > 0 ? (
                 <div className="space-y-8">
@@ -587,58 +658,109 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
                   const social = data.two_dimensional?.social;
                   const ideology = data.one_dimensional?.top_label;
 
-                  const formatIdeology = (label) => {
-                    if (!label) return null;
-                    if (label.includes("left")) return "Left-wing politics";
-                    if (label.includes("right")) return "Right-wing politics";
-                    return "Centrist politics";
-                  };
+                  const overallPosition = getOverallAxisPosition(data.one_dimensional);
+                  const overallLabel = getOverallLeanLabel(overallPosition);
+                  const overallPercent = getAxisPercentFromCentre(overallPosition);
+
+                  // convert -1..1 to 0..100 for left-to-right positioning
+                  const markerPosition = ((overallPosition + 1) / 2) * 100;
 
                     return (
                       <div key={index} className="border-b pb-6 last:border-none">
-                        <div className="flex items-center mb-4">
+                        <div className="flex items-center justify-between mb-4">
                           <h4 className="text-lg font-semibold">{safeReplace(speaker)}</h4>
-                          {ideology && (
-                            <span className="ml-4 px-3 py-1 text-xs rounded-full bg-gray-100 text-gray-700">
-                              {formatIdeology(ideology)}
-                            </span>
-                          )}
-                          {data.one_dimensional?.confidence != null && (
-                            <span className="ml-2 text-xs text-gray-400">
-                              confidence: {(data.one_dimensional.confidence * 100).toFixed(0)}%
-                            </span>
-                          )}
+                          <span className="text-sm text-gray-600">
+                            Overall: <span className="font-medium text-gray-800">{overallLabel}</span>
+                          </span>
                         </div>
-                        <div className="mb-4">
-                          <p className="text-sm text-gray-500 mb-2">Economic Axis</p>
-                          <div className="w-full bg-gray-200 h-3 rounded-full">
-                            <div
-                              className="h-3 rounded-full bg-blue-500"
-                              style={{ width: `${Math.abs(econ?.axis || 0) * 100}%`}}
-                            />
+
+                        <div className="mb-5">
+                          <p className="text-sm text-gray-500 mb-3">Overall Position</p>
+
+                          <div className="relative px-2 pt-10 pb-8">
+                            <div className="relative h-4 rounded-full bg-gradient-to-r from-blue-500 via-gray-300 to-red-500 overflow-visible">
+                              {/* centre marker */}
+                              <div className="absolute left-1/2 top-0 h-4 w-px bg-gray-600 -translate-x-1/2" />
+
+                              {/* speaker dot */}
+                              <div
+                                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2"
+                                style={{ left: `${markerPosition}%` }}
+                              >
+                                <div className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-800 px-2 py-1 text-xs font-medium text-white shadow-sm">
+                                  {overallPercent}%
+                                </div>
+                                <div className="h-4 w-4 rounded-full border-2 border-white shadow" style={{ backgroundColor: getGradientColor(overallPosition) }} />
+                              </div>
+                            </div>
+
+                            <div className="mt-3 flex justify-between text-xs text-gray-500">
+                              <span>Left-wing</span>
+                              <span>Centre</span>
+                              <span>Right-wing</span>
+                            </div>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {econ?.axis < 0 ? 'State / Redistributive' : econ?.axis > 0 ? 'Market / Free Economy' : 'Neutral'}
-                            <span className="ml-2">({econ?.axis?.toFixed(2)})</span>
+
+                          <p className="text-sm text-gray-700">
+                            <span className="font-medium">Summary:</span> {overallLabel}
                           </p>
                         </div>
 
-                        <div>
-                          <p className="text-sm text-gray-500 mb-2">Social Axis</p>
-                          <div className="relative w-full bg-gray-200 h-3 rounded-full overflow-hidden">
-                            <div
-                                className="absolute top-0 h-3 bg-blue-500"
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <p className="text-sm text-gray-500 mb-2">Economic Position</p>
+                            <div className="relative h-3 rounded-full bg-gray-200">
+                              <div className="absolute left-1/2 top-0 h-3 w-px bg-gray-400 -translate-x-1/2" />
+                              <div
+                                className="absolute top-0 h-3"
                                 style={{
-                                  width: `${Math.min(Math.max(Math.abs(social?.axis || 0) * 100, 0), 100)}%`,
-                                  [social?.axis < 0 ? 'left' : 'right']: '50%',
+                                  width: `${Math.min(Math.abs(econ?.axis || 0) * 50, 50)}%`,
+                                  [econ?.axis < 0 ? 'right' : 'left']: '50%',
+                                  backgroundColor: getGradientColor(econ?.axis || 0),
                                 }}
                               />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">
+                              {describeEconomicAxis(econ?.axis)}
+                              <span className="ml-2">({econ?.axis?.toFixed(2)})</span>
+                            </p>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {social?.axis < 0 ? 'Liberal / Progressive' : social?.axis > 0 ? 'Traditional / Conservative' : 'Neutral'}
-                            <span className="ml-2">({social?.axis?.toFixed(2)})</span>
-                          </p>
+
+                          <div>
+                            <p className="text-sm text-gray-500 mb-2">Social Position</p>
+                            <div className="relative h-3 rounded-full bg-gray-200">
+                              <div className="absolute left-1/2 top-0 h-3 w-px bg-gray-400 -translate-x-1/2" />
+                              <div
+                                className="absolute top-0 h-3"
+                                style={{
+                                  width: `${Math.min(Math.abs(social?.axis || 0) * 50, 50)}%`,
+                                  [social?.axis < 0 ? 'right' : 'left']: '50%',
+                                  backgroundColor: getGradientColor(social?.axis || 0),
+                                }}
+                              />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">
+                              {describeSocialAxis(social?.axis)}
+                              <span className="ml-2">({social?.axis?.toFixed(2)})</span>
+                            </p>
+                          </div>
                         </div>
+
+                        <div className="bg-gradient-to-r from-blue-50 via-gray-50 to-red-50 border border-gray-200 rounded-lg p-3">
+                          <p className="text-xs text-gray-500 mb-2 font-medium">Political Traits</p>
+                          <div className="flex flex-wrap gap-2">
+                            {getPoliticalTraits(overallPosition, econ?.axis, social?.axis).map((trait, idx) => (
+                              <span key={idx} className="px-2 py-1 bg-white border border-gray-300 rounded-full text-xs font-medium text-gray-700">
+                                {trait}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <p className="text-sm text-gray-700 mt-4">
+                          <span className="font-medium">Summary:</span>{" "}
+                          {buildPoliticalSummary(overallPosition, econ?.axis, social?.axis)}
+                        </p>
                       </div>
                     );
                   })}
