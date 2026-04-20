@@ -14,11 +14,15 @@ from typing import Any, Optional
 from ml.speech_service import analyse_audio
 from ml.emotion_analysis import analyse_emotions
 from ml.topic_extraction import extract_topics
-from ml.speaker_metrics import calculate_speaker_metrics
+from ml.speaker_metrics import (
+    calculate_speaker_metrics,
+    analyze_topic_sentiment,
+)
 from ml.political_analysis import (
     analyse_speaker_politics,
     build_speaker_texts_from_diarized_transcript,
 )
+from utils.wordclouds import generate_wordcloud_base64
 
 # Configure logging for production
 logging.basicConfig(
@@ -218,6 +222,42 @@ def process_job(job_id: str, file_url: str) -> None:
         try:
             logger.info(f"[JOB {job_id}] Extracting topics")
             topics_result = extract_topics(full_text, segments=transcript)
+
+            # Enrich topics payload for frontend visualizations.
+            # Use the same topic extraction pipeline for each speaker to keep logic consistent.
+            per_speaker_topics = {}
+            speaker_turns = {}
+            for turn in transcript:
+                speaker = turn.get("speaker", "unknown")
+                speaker_turns.setdefault(speaker, []).append(turn)
+
+            for speaker, turns in speaker_turns.items():
+                speaker_text = " ".join((t.get("text") or "") for t in turns)
+                speaker_topic_data = extract_topics(speaker_text, segments=turns)
+                speaker_topic_data["topics"] = speaker_topic_data.get("main_topics", [])
+                speaker_topic_data["turn_count"] = len(turns)
+                per_speaker_topics[speaker] = speaker_topic_data
+
+            topics_result["per_speaker_topics"] = per_speaker_topics
+            topics_result["topic_sentiment"] = analyze_topic_sentiment(
+                transcript,
+                topics_result.get("keywords", []),
+            )
+
+            try:
+                topics_result["wordcloud_image"] = generate_wordcloud_base64(
+                    topics_result.get("keywords", []),
+                    topics_result.get("scores", {}),
+                )
+
+                for _, speaker_data in topics_result.get("per_speaker_topics", {}).items():
+                    speaker_data["wordcloud_image"] = generate_wordcloud_base64(
+                        speaker_data.get("keywords", []),
+                        speaker_data.get("scores", {}),
+                    )
+            except Exception as wc_err:
+                logger.warning(f"[JOB {job_id}] Wordcloud generation failed: {wc_err}")
+
             logger.info(f"Text Sample for Topic Extraction: {full_text[:200]}")  # Log text sample for debugging
             logger.info(f"[JOB {job_id}] Extracted {len(topics_result.get('keywords', []))} keywords and {len(topics_result.get('main_topics', []))} main topics")
             logger.info(f"[JOB {job_id}] Main topics: {topics_result.get('main_topics', [])}")

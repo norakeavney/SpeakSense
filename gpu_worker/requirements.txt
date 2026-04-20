@@ -37,3 +37,10 @@ huggingface-hub>=0.20.0
 # -------------------------
 textblob>=0.17.0
 vaderSentiment>=3.3.0
+
+# -------------------------
+# Word Cloud & Visualization
+# -------------------------
+pillow>=10.4.0
+wordcloud>=1.8.2
+matplotlib>=3.7.0

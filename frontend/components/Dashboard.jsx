@@ -364,22 +364,31 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
           </div>
         )}
 
-        {speakerTopics?.keywords?.length > 0 && (
-          <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-            <h3 className="text-base font-medium mb-4">Topics & Keywords</h3>
-            {speakerTopics.topics?.length > 0 && (
-              <div className="mb-4">
-                <p className="text-sm font-medium text-gray-600 mb-2">Main Topics</p>
-                <div className="flex flex-wrap gap-2">
-                  {speakerTopics.topics.map((topic, idx) => (
-                    <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                      {topic}
-                    </span>
-                  ))}
-                </div>
+        <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <h3 className="text-base font-medium mb-4">Topics & Keywords</h3>
+          {speakerTopics?.topics?.length > 0 ? (
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-600 mb-2">Main Topics</p>
+              <div className="flex flex-wrap gap-2">
+                {speakerTopics.topics.map((topic, idx) => (
+                  <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                    {topic}
+                  </span>
+                ))}
               </div>
-            )}
-            <p className="text-sm font-medium text-gray-600 mb-3">Keywords</p>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 mb-4">No strong speaker-specific topics were extracted yet.</p>
+          )}
+
+          <p className="text-sm font-medium text-gray-600 mb-3">Keywords</p>
+          {speakerTopics?.wordcloud_image ? (
+            <img
+              src={speakerTopics.wordcloud_image}
+              alt={`${safeReplace(speaker)} topic word cloud`}
+              className="w-full rounded-lg border border-gray-100"
+            />
+          ) : speakerTopics?.keywords?.length > 0 ? (
             <WordCloud
               words={filterTokens(speakerTopics.keywords).map((keyword) => ({
                 word: keyword,
@@ -388,8 +397,13 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
               height={280}
               maxWords={30}
             />
-          </div>
-        )}
+          ) : (
+            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+              <p className="text-sm text-gray-500">Word cloud not available for this speaker yet.</p>
+              <p className="text-xs text-gray-400 mt-1">Try a longer transcript or more speaker turns for richer topic extraction.</p>
+            </div>
+          )}
+        </div>
 
         {speakerQuestions && (
           <div className="col-span-12 lg:col-span-6 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
@@ -605,7 +619,13 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
 
             <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
               <h3 className="text-base font-medium mb-6">Topics Word Cloud</h3>
-              {results.topics?.keywords?.length ? (
+              {results.topics?.wordcloud_image ? (
+                <img
+                  src={results.topics.wordcloud_image}
+                  alt="Topic word cloud"
+                  className="w-full rounded-lg border border-gray-100"
+                />
+              ) : results.topics?.keywords?.length ? (
                 <WordCloud 
                   words={filterTokens(results.topics.keywords).map((keyword) => ({
                     word: keyword,
@@ -656,7 +676,6 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
                 {politicalSpeakers.map(([speaker, data], index) => {
                   const econ = data.two_dimensional?.economic;
                   const social = data.two_dimensional?.social;
-                  const ideology = data.one_dimensional?.top_label;
 
                   const overallPosition = getOverallAxisPosition(data.one_dimensional);
                   const overallLabel = getOverallLeanLabel(overallPosition);
