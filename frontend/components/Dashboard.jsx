@@ -574,50 +574,67 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
 
             <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
               <h3 className="text-base font-medium mb-6">Political Alignment</h3>
+              <p className="text-xs text-gray-500 mb-6">
+                This analysis estimates political tendencies using a zero-shot classification model.
+                Scores range from -1 to +1:
+                Economic axis: -1 = state/redistributive, +1 = market-oriented.
+                Social axis: -1 = liberal/progressive, +1 = traditional/conservative.
+              </p>
               {politicalSpeakers.length > 0 ? (
                 <div className="space-y-8">
                   {politicalSpeakers.map(([speaker, data], index) => {
                     const econ = data.two_dimensional?.economic;
                     const social = data.two_dimensional?.social;
-                    const ideology = data.one_dimensional?.top_label;
+                    const formatIdeology = (label) => {
+                      if (!label) return null;
+                      if (label.includes("left")) return "Left-wing politics";
+                      if (label.includes("right")) return "Right-wing politics";
+                      return "Centrist politics";
+                    };
 
                     return (
                       <div key={index} className="border-b pb-6 last:border-none">
                         <div className="flex items-center mb-4">
-                          <h4 className="text-lg font-semibold">{speaker}</h4>
+                          <h4 className="text-lg font-semibold">{safeReplace(speaker)}</h4>
                           {ideology && (
-                            <span className="ml-4 px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
-                              {ideology}
+                            <span className="ml-4 px-3 py-1 text-xs rounded-full bg-gray-100 text-gray-700">
+                              {formatIdeology(ideology)}
+                            </span>
+                          )}
+                          {data.one_dimensional?.confidence != null && (
+                            <span className="ml-2 text-xs text-gray-400">
+                              confidence: {(data.one_dimensional.confidence * 100).toFixed(0)}%
                             </span>
                           )}
                         </div>
-
                         <div className="mb-4">
                           <p className="text-sm text-gray-500 mb-2">Economic Axis</p>
                           <div className="w-full bg-gray-200 h-3 rounded-full">
                             <div
-                              className={`h-3 rounded-full ${econ?.axis >= 0 ? 'bg-red-500' : 'bg-green-500'}`}
-                              style={{ width: `${Math.abs(econ?.axis || 0) * 50}%` }}
+                              className="h-3 rounded-full bg-blue-500"
+                              style={{ width: `${Math.abs(econ?.axis || 0) * 100}%`}}
                             />
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {econ?.axis < 0 ? 'Progressive' : econ?.axis > 0 ? 'Conservative' : 'Neutral'}
-                          </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {econ?.axis < 0 ? 'State / Redistributive' : econ?.axis > 0 ? 'Market / Free Economy' : 'Neutral'}
+                              <span className="ml-2">({econ?.axis?.toFixed(2)})</span>
+                            </p>
                         </div>
 
                         <div>
                           <p className="text-sm text-gray-500 mb-2">Social Axis</p>
                           <div className="relative w-full bg-gray-200 h-3 rounded-full overflow-hidden">
                             <div
-                              className={`absolute top-0 h-3 ${social?.axis >= 0 ? 'bg-red-500' : 'bg-blue-500'}`}
-                              style={{
-                                width: `${Math.min(Math.max(Math.abs(social?.axis || 0) * 100, 0), 100)}%`,
-                                [social?.axis < 0 ? 'left' : 'right']: '50%',
-                              }}
-                            />
+                                className="absolute top-0 h-3 bg-blue-500"
+                                style={{
+                                  width: `${Math.min(Math.max(Math.abs(social?.axis || 0) * 100, 0), 100)}%`,
+                                  [social?.axis < 0 ? 'left' : 'right']: '50%',
+                                }}
+                              />
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            {social?.axis < 0 ? 'Liberal' : social?.axis > 0 ? 'Conservative' : 'Neutral'}
+                            {social?.axis < 0 ? 'Liberal / Progressive' : social?.axis > 0 ? 'Traditional / Conservative' : 'Neutral'}
+                            Score: {social?.axis?.toFixed(2)}
                           </p>
                         </div>
                       </div>
