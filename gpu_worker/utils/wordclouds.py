@@ -13,6 +13,9 @@ CUSTOM_STOPWORDS = {
     "um", "uh", "like", "yeah", "okay", "ok",
     "just", "really", "thing", "things",
     "going", "said", "say",
+    "very", "also", "even", "perhaps", "certain",
+    "real", "much", "many", "lot", "something",
+    "actually", "basically", "kind", "sort"
 }
 
 
@@ -31,13 +34,16 @@ def build_frequency_map(keywords: List[str], scores: Dict[str, float] | None = N
 
     for word in keywords or []:
         w = clean_token(word)
-        if not w or w in stopwords or len(w) < 4:
+        if not w or w in stopwords or len(w) < 5:
             continue
 
         weight = float(scores.get(word, scores.get(w, 1.0)) or 1.0)
-        freq[w] = max(freq.get(w, 0), weight)
+        # Accumulate frequencies instead of taking max
+        freq[w] = freq.get(w, 0) + weight
 
-    return freq
+    # Keep only top 40 keywords
+    sorted_freq = dict(sorted(freq.items(), key=lambda x: x[1], reverse=True)[:40])
+    return sorted_freq
 
 
 def generate_wordcloud_base64(keywords, scores=None):
@@ -50,11 +56,13 @@ def generate_wordcloud_base64(keywords, scores=None):
         width=1200,
         height=600,
         background_color="white",
-        max_words=60,
-        colormap="viridis",
+        max_words=40,
+        colormap="plasma",
         prefer_horizontal=0.9,
         collocations=False,
         margin=8,
+        min_font_size=10,
+        max_font_size=120,
     ).generate_from_frequencies(freq)
 
     fig = plt.figure(figsize=(12, 6))

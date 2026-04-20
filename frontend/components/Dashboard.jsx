@@ -48,17 +48,29 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
   const dashboardRef = useRef(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [showCloudTooltip, setShowCloudTooltip] = useState(false);
   
   const safeReplace = (text) => {
     if (!text) return "Unknown";
     return String(text).replace(/_/g, " ");
   };
 
+  // Client-side stopwords for additional filtering
+  const CLIENT_STOPWORDS = new Set([
+    "very", "quite", "rather", "fairly", "somewhat", "pretty", "especially",
+    "perhaps", "possibly", "arguably", "apparently", "notably", "particularly",
+    "specifically", "might", "could", "should", "may", "must", "shall",
+    "often", "always", "never", "sometimes", "usually", "actually", "basically",
+    "literally", "maybe", "probably", "stuff", "kinda", "sorta", "guess",
+    "around", "almost", "sort", "kind", "means", "mean", "anyway", "anyways"
+  ]);
+
   const filterTokens = (tokens = []) =>
     tokens
       .map((t) => String(t || '').trim().toLowerCase())
       .filter((t) => /^[a-zA-Z]+(?:\s[a-zA-Z]+){0,2}$/.test(t))
-      .filter((t) => t.split(' ').every((word) => word.length >= 4));
+      .filter((t) => t.split(' ').every((word) => word.length >= 4))
+      .filter((t) => !CLIENT_STOPWORDS.has(t) && !t.split(' ').some((w) => CLIENT_STOPWORDS.has(w)));
 
   // Political alignment helpers
   const clamp = (value, min = -1, max = 1) => Math.min(Math.max(value, min), max);
@@ -619,51 +631,57 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
 
             <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
               <h3 className="text-base font-medium mb-6">Topics Word Cloud</h3>
-              {results.topics?.wordcloud_image ? (
-                <img
-                  src={results.topics.wordcloud_image}
-                  alt="Topic word cloud"
-                  className="w-full rounded-lg border border-gray-100"
-                />
-              ) : results.topics?.keywords?.length ? (
-                <WordCloud 
-                  words={filterTokens(results.topics.keywords).map((keyword) => ({
-                    word: keyword,
-                    score: results.topics.scores?.[keyword] || 0.5
-                  }))}
-                  height={400}
-                  maxWords={40}
-                />
-              ) : (
-                <p className="text-gray-400 text-sm">No topic data available.</p>
-              )}
+              <div 
+                className="relative"
+                onMouseEnter={() => setShowCloudTooltip(true)}
+                onMouseLeave={() => setShowCloudTooltip(false)}
+              >
+                {results.topics?.wordcloud_image ? (
+                  <img
+                    src={results.topics.wordcloud_image}
+                    alt="Topic word cloud"
+                    className="w-full rounded-lg border border-gray-100"
+                  />
+                ) : results.topics?.keywords?.length ? (
+                  <WordCloud 
+                    words={filterTokens(results.topics.keywords).map((keyword) => ({
+                      word: keyword,
+                      score: results.topics.scores?.[keyword] || 0.5
+                    }))}
+                    height={400}
+                    maxWords={40}
+                  />
+                ) : (
+                  <p className="text-gray-400 text-sm">No topic data available.</p>
+                )}
+                
+                {/* Hover Tooltip */}
+                {showCloudTooltip && results.topics?.keywords && (
+                  <div className="absolute top-6 right-6 bg-gray-900 text-white rounded-lg p-4 shadow-lg z-50 max-w-xs">
+                    <p className="text-xs font-semibold mb-3 text-blue-300">Main Topics Summary</p>
+                    <div className="space-y-2">
+                      {results.topics.keywords.slice(0, 6).map((keyword, idx) => {
+                        const score = results.topics.scores?.[keyword] || 0.5;
+                        const scorePercent = (score * 100).toFixed(0);
+                        return (
+                          <div key={idx} className="flex items-center justify-between text-xs">
+                            <span className="text-gray-100">{keyword}</span>
+                            <span className="ml-3 text-blue-300 font-medium">{scorePercent}%</span>
+                          </div>
+                        );
+                      })}
+                      {results.topics.keywords.length > 6 && (
+                        <p className="text-xs text-gray-400 pt-2 border-t border-gray-700 mt-2">
+                          +{results.topics.keywords.length - 6} more keyword{results.topics.keywords.length - 6 > 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {results.topics?.per_speaker_topics && Object.keys(results.topics.per_speaker_topics).length > 0 && (
-              <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                <h3 className="text-base font-medium mb-6">Speaker Topics</h3>
-                <PerSpeakerTopics 
-                  perSpeakerTopics={results.topics.per_speaker_topics}
-                  activeSpeaker={activeTab !== 'overview' && activeTab !== 'transcript' ? activeTab : null}
-                  speakerColors={Object.fromEntries(
-                    results.diarization?.speakers?.map((speaker, idx) => [
-                      speaker,
-                      getSpeakerTabColor(idx)
-                    ]) || []
-                  )}
-                />
-              </div>
-            )}
 
-            {results.topics?.topic_sentiment && Object.keys(results.topics.topic_sentiment).length > 0 && (
-              <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                <h3 className="text-base font-medium mb-6">Topic Sentiment Analysis</h3>
-                <TopicSentimentAnalysis 
-                  topicSentiment={results.topics.topic_sentiment}
-                  speakersAvailable={results.diarization?.speakers || []}
-                />
-              </div>
-            )}
 
             <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
               <h3 className="text-base font-medium mb-6">Political Alignment</h3>

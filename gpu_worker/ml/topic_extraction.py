@@ -44,7 +44,12 @@ _DEBATE_STOPWORDS = {
     "actually", "basically", "literally", "maybe", "probably", "stuff",
     "kinda", "sorta", "guess", "around", "almost", "sort", "kind",
     "means", "mean", "anyway", "anyways", "stuff", "things", "something",
-    "someone", "everybody", "everyone", "nobody", "somebody"
+    "someone", "everybody", "everyone", "nobody", "somebody",
+    # intensifiers & hedging
+    "very", "quite", "rather", "fairly", "somewhat", "pretty", "especially",
+    "perhaps", "possibly", "arguably", "apparently", "notably", "particularly",
+    "specifically", "might", "could", "should", "may", "must", "shall",
+    "often", "always", "never", "sometimes", "usually"
 }
 
 ALL_STOPWORDS = _BASIC_STOPWORDS.union(_EXTRA_STOPWORDS).union(_DEBATE_STOPWORDS)

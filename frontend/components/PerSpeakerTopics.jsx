@@ -119,13 +119,13 @@ export default function PerSpeakerTopics({
                       <img
                         src={data.wordcloud_image}
                         alt={`${safeReplace(speaker)} topic word cloud`}
-                        className="w-full rounded-lg border border-gray-200"
+                        className="max-w-xs mx-auto rounded-lg border border-gray-200"
                       />
                     ) : (
                       <WordCloud
                         words={wordCloudData}
-                        height={200}
-                        maxWords={20}
+                        height={120}
+                        maxWords={15}
                       />
                     )}
                   </div>
