@@ -582,15 +582,17 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
               </p>
               {politicalSpeakers.length > 0 ? (
                 <div className="space-y-8">
-                  {politicalSpeakers.map(([speaker, data], index) => {
-                    const econ = data.two_dimensional?.economic;
-                    const social = data.two_dimensional?.social;
-                    const formatIdeology = (label) => {
-                      if (!label) return null;
-                      if (label.includes("left")) return "Left-wing politics";
-                      if (label.includes("right")) return "Right-wing politics";
-                      return "Centrist politics";
-                    };
+                {politicalSpeakers.map(([speaker, data], index) => {
+                  const econ = data.two_dimensional?.economic;
+                  const social = data.two_dimensional?.social;
+                  const ideology = data.one_dimensional?.top_label;
+
+                  const formatIdeology = (label) => {
+                    if (!label) return null;
+                    if (label.includes("left")) return "Left-wing politics";
+                    if (label.includes("right")) return "Right-wing politics";
+                    return "Centrist politics";
+                  };
 
                     return (
                       <div key={index} className="border-b pb-6 last:border-none">
@@ -615,10 +617,10 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
                               style={{ width: `${Math.abs(econ?.axis || 0) * 100}%`}}
                             />
                           </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {econ?.axis < 0 ? 'State / Redistributive' : econ?.axis > 0 ? 'Market / Free Economy' : 'Neutral'}
-                              <span className="ml-2">({econ?.axis?.toFixed(2)})</span>
-                            </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {econ?.axis < 0 ? 'State / Redistributive' : econ?.axis > 0 ? 'Market / Free Economy' : 'Neutral'}
+                            <span className="ml-2">({econ?.axis?.toFixed(2)})</span>
+                          </p>
                         </div>
 
                         <div>
@@ -634,7 +636,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
                             {social?.axis < 0 ? 'Liberal / Progressive' : social?.axis > 0 ? 'Traditional / Conservative' : 'Neutral'}
-                            Score: {social?.axis?.toFixed(2)}
+                            <span className="ml-2">({social?.axis?.toFixed(2)})</span>
                           </p>
                         </div>
                       </div>
