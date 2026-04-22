@@ -54,7 +54,7 @@ def create_user_profile_in_mongodb(user):
         }
         
         users_collection.insert_one(profile_document)
-        print(f"Created MongoDB profile for user: {user.username}")
+        # profile created (info)
         
     except Exception as e:
         print(f"Failed to create MongoDB profile: {e}")

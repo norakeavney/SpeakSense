@@ -141,11 +141,11 @@ SpeakSense follows a distributed architecture consisting of a frontend, backend 
 
 ### High-Level Architecture
 
-![High-Level Architecture](./images/sysarchitecture.svg)
+![High-Level Architecture](images/sysarchitecture.svg)
 
 ### Deployment Architecture (AWS)
 
-![Deployment Architecture](./images/DeploymentSysDesign.png)
+![Deployment Architecture](images/DeploymentSysDesign.png)
 
 ## Speech Processing Pipeline
 
@@ -164,7 +164,7 @@ The system processes raw audio through a multi-stage pipeline:
 
 ### Pipeline Overview
 
-![Pipeline](./images/SSPipeline.png)
+![Pipeline](images/SSPipeline.png)
 
 ## Backend Job Processing Flow
 
@@ -177,7 +177,7 @@ The system uses an asynchronous job-based architecture:
 5. Results are stored and returned  
 6. Frontend polls for status updates  
 
-![Job Flow](./images/BackendSysDesign.png)
+![Job Flow](images/BackendSysDesign.png)
 
 ## Data Storage Structure
 
@@ -192,7 +192,7 @@ Results are presented through an interactive dashboard, providing both high-leve
 
 ### Example Dashboard
 
-![Dashboard](./images/Dashboard-SS.png)
+![Dashboard](images/Dashboard-SS.png)
 
 ### Key Outputs
 

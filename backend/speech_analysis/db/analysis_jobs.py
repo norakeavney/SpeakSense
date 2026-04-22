@@ -1,7 +1,4 @@
-"""
-Analysis Jobs Collection Manager
-Handles job status tracking and progressive results storage
-"""
+"""Analysis job manager for storing job status and results in MongoDB."""
 from datetime import datetime
 import uuid
 from .mongodb import mongodb

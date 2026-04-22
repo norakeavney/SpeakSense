@@ -1,7 +1,4 @@
-"""
-MongoDB connection handler for SpeakSense
-Provides both synchronous and asynchronous database connections
-"""
+"""MongoDB connection handler for SpeakSense."""
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -37,8 +34,6 @@ class MongoDBConnection:
                 connectTimeoutMS=10000
             )
             self.db = self.client[self._db_name]
-            
-            print(f"✅ MongoDB client initialized: {self._db_name}")
             return self.db
             
         except Exception as e:
@@ -58,10 +53,8 @@ class MongoDBConnection:
                 serverSelectionTimeoutMS=10000
             )
             self.async_db = self.async_client[self._db_name]
-            
             # Test connection
             await self.async_client.admin.command('ping')
-            print(f"✅ Async connected to MongoDB: {self._db_name}")
             return self.async_db
             
         except Exception as e:

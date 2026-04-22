@@ -1,7 +1,5 @@
-"""
-MongoDB connection utility for SpeakSense API
-Uses pymongo for synchronous operations
-"""
+"""MongoDB helper for SpeakSense API (pymongo)."""
+
 import logging
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
@@ -11,28 +9,27 @@ logger = logging.getLogger(__name__)
 
 
 class MongoDBConnection:
-    """Singleton MongoDB connection manager"""
+    """Singleton MongoDB connection manager."""
     _instance = None
     _client = None
     _db = None
-    
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(MongoDBConnection, cls).__new__(cls)
         return cls._instance
-    
+
     def connect(self):
-        """Establish connection to MongoDB"""
+        """Establish connection to MongoDB."""
         if self._client is None:
             try:
                 self._client = MongoClient(
                     settings.MONGODB_URI,
-                    tls=False,  # Disable TLS for local development; set to True for production
-                    tlsAllowInvalidCertificates=False,  # Do not allow invalid certificates
-                    serverSelectionTimeoutMS=10000
+                    tls=False,
+                    tlsAllowInvalidCertificates=False,
+                    serverSelectionTimeoutMS=10000,
                 )
-                # Test the connection
-                self._client.admin.command('ping')
+                self._client.admin.command("ping")
                 self._db = self._client[settings.MONGODB_DB_NAME]
                 logger.info(f"Connected to MongoDB: {settings.MONGODB_DB_NAME}")
                 return True
@@ -40,20 +37,20 @@ class MongoDBConnection:
                 logger.error(f"MongoDB connection failed: {e}")
                 return False
         return True
-    
+
     def get_database(self):
-        """Get the database instance"""
+        """Return the database instance, connecting if necessary."""
         if self._db is None:
             self.connect()
         return self._db
-    
+
     def get_collection(self, collection_name):
-        """Get a specific collection"""
+        """Return a collection by name, or None if unavailable."""
         db = self.get_database()
         return db[collection_name] if db else None
-    
+
     def close(self):
-        """Close the MongoDB connection"""
+        """Close the MongoDB client and clear cached references."""
         if self._client:
             self._client.close()
             self._client = None
@@ -61,15 +58,15 @@ class MongoDBConnection:
             logger.info("MongoDB connection closed")
 
 
-# Create a global instance
+# Global singleton instance
 mongodb = MongoDBConnection()
 
 
 def get_db():
-    """Helper function to get database instance"""
+    """Helper: get the database instance."""
     return mongodb.get_database()
 
 
 def get_collection(collection_name):
-    """Helper function to get a collection"""
+    """Helper: get a collection by name."""
     return mongodb.get_collection(collection_name)

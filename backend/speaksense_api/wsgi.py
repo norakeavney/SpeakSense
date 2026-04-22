@@ -1,11 +1,4 @@
-"""
-WSGI config for speaksense_api project.
-
-It exposes the WSGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/5.1/howto/deployment/wsgi/
-"""
+"""WSGI configuration for the speaksense_api project."""
 
 import os
 
