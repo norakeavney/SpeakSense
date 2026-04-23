@@ -1,6 +1,6 @@
-"""
-Speech Analysis Service - Whisper + Pyannote (No WhisperX!)
-Clean separation: Whisper for transcription, Pyannote for diarization
+"""Speech Analysis Service — Whisper + Pyannote.
+
+Pipeline: transcription (Whisper) -> diarization (Pyannote) -> speaker matching.
 """
 import logging
 import whisper
@@ -56,16 +56,16 @@ def _convert_to_clean_wav(file_ref, target_sr=16000):
     """
     try:
         logger.info(f"Converting audio to mono {target_sr}Hz WAV...")
-        
-        # Load audio (librosa handles all formats: mp4, m4a, wav, etc.)
+
+        # Load audio (librosa handles formats like mp4, m4a, wav)
         y, sr = librosa.load(file_ref, sr=target_sr, mono=True)
-        logger.info(f"Loaded: {sr}Hz, shape={y.shape}")
-        
+        logger.debug(f"Loaded audio: {sr}Hz, shape={y.shape}")
+
         # Save to temp WAV file
         temp_wav = Path(tempfile.gettempdir()) / f"speaksense_clean_{Path(file_ref).stem}.wav"
         sf.write(str(temp_wav), y, target_sr)
-        logger.info(f"Converted to {temp_wav}")
-        
+        logger.debug(f"Converted audio saved to {temp_wav}")
+
         return str(temp_wav)
     except Exception as e:
         logger.error(f"Audio conversion failed: {e}")
@@ -94,7 +94,7 @@ def analyse_audio(file_ref, include_diarization=True):
     # STEP 1: TRANSCRIBE WITH WHISPER
     # ============================================================
     logger.info("[1/3] Transcribing with Whisper...")
-    
+
     result = WHISPER_MODEL.transcribe(
         audio_path,
         task="transcribe",
@@ -104,8 +104,8 @@ def analyse_audio(file_ref, include_diarization=True):
     
     text = result['text'].strip()
     segments = result.get('segments', [])
-    
-    logger.info(f"Transcription complete! {len(segments)} segments")
+
+    logger.info(f"Transcription complete: {len(segments)} segments")
     
     # If no diarization needed, return early
     if not include_diarization:
@@ -208,7 +208,7 @@ def analyse_audio(file_ref, include_diarization=True):
         for seg in segments
     ])))
     
-    logger.info(f"Pipeline complete - {num_speakers} speakers, {len(transcript)} turns")
+    logger.info(f"Pipeline complete: {num_speakers} speakers, {len(transcript)} turns")
     
     return {
         'status': 'completed',

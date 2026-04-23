@@ -1,3 +1,9 @@
+"""Topic extraction using KeyBERT with frequency fallback.
+
+Pipeline: select top segments -> clean -> extract keywords -> link to segments.
+"""
+
+import logging
 import re
 from collections import Counter
 
@@ -8,6 +14,9 @@ try:
     _KEYBERT_AVAILABLE = True
 except ImportError:
     _KEYBERT_AVAILABLE = False
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────
@@ -171,10 +180,10 @@ def extract_topics(
 
     try:
         if _kw_model is None:
-            print("→ Loading KeyBERT model...")
+            logger.info("Loading KeyBERT model...")
             device = "cuda" if torch.cuda.is_available() else "cpu"
             _kw_model = KeyBERT(model="all-MiniLM-L6-v2")
-            print(f"✓ KeyBERT ready")
+            logger.info("KeyBERT ready")
 
         # STEP 1: Extract candidates
         min_df = 2 if len(source_text.split()) > 300 else 1
@@ -254,5 +263,5 @@ def extract_topics(
         }
 
     except Exception as e:
-        print(f"KeyBERT failed: {e}")
+        logger.exception("KeyBERT failed: %s", e)
         return _fallback_topics(source_text, max_topics, max_keywords)

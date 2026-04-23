@@ -1,11 +1,9 @@
-"""
-Speaker Metrics Analysis Service
-Calculates comprehensive speaking patterns and statistics
-Optimized for GPU worker deployment with proper error handling
+"""Speaker Metrics Analysis Service
+
+Pipeline: aggregate -> per-speaker metrics -> comparative -> topics/sentiment/bias
 """
 import re
 import logging
-import numpy as np
 from collections import Counter
 from typing import Dict, List, Any, Optional
 
@@ -909,7 +907,6 @@ def extract_topics_per_speaker(transcript: List[Dict], topics_data: Optional[Dic
                 'scores': scores,
                 'turn_count': len(turns)
             }
-            logger.debug(f"Extracted {len(topics)} topics for speaker {speaker}")
             
         except Exception as e:
             logger.error(f"Topic extraction for {speaker} failed: {e}")
@@ -1050,7 +1047,7 @@ def analyze_topic_sentiment(transcript: List[Dict], topics_list: Optional[List[s
                         # Remove the raw compounds list from final output
                         del data['compounds']
                 
-                logger.debug(f"Analyzed sentiment for topic '{topic}': {sentiment_per_topic[topic]['average_sentiment']}")
+                # Finished analysis for this topic
         
         except Exception as e:
             logger.error(f"Topic sentiment analysis failed for topic '{topic}': {e}")

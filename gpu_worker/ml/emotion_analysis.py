@@ -6,23 +6,23 @@ Combines text-based and audio-based emotion analysis
 
 import logging
 from typing import Dict, List, Any, Tuple
-from collections import Counter, defaultdict
-import re
+from collections import defaultdict
 import torch
-import torchaudio
 import numpy as np
 from transformers import (
-    pipeline, 
-    AutoModelForSequenceClassification, 
+    pipeline,
+    AutoModelForSequenceClassification,
     AutoTokenizer,
     Wav2Vec2Processor,
-    Wav2Vec2ForSequenceClassification
+    Wav2Vec2ForSequenceClassification,
 )
 import warnings
 
 warnings.filterwarnings('ignore', category=FutureWarning)
 
 logger = logging.getLogger(__name__)
+
+# Pipeline: transcript -> text analysis -> post-process -> aggregate -> summarize
 
 # Initialize emotion classifier with DistilBERT (for text)
 _emotion_classifier = None
@@ -128,12 +128,13 @@ def analyse_emotions(transcript_data: List[Dict], audio_features: Dict = None) -
     classifier = get_emotion_classifier()
     use_transformer = classifier != "fallback"
     
-    # FIX 4: Use confidence-weighted emotion accumulation
-    emotion_scores = defaultdict(float)  # Changed from list to weighted scores
-    all_confidences = []  # FIX 1: Track text confidences for dynamic weighting
+    # Use confidence-weighted emotion accumulation
+    emotion_scores = defaultdict(float)
+    # Track confidences for dynamic weighting
+    all_confidences = []
     timeline = []
     per_speaker_emotions = {}
-    per_speaker_timeline = defaultdict(list)  # For per-speaker emotion over time
+    per_speaker_timeline = defaultdict(list)
     
     for segment in transcript_data:
         text = segment.get('text', '')
@@ -149,7 +150,7 @@ def analyse_emotions(transcript_data: List[Dict], audio_features: Dict = None) -
         else:
             raw_emotion, raw_confidence = _detect_emotion_from_text(text)
         
-        # Step 2: Apply context-aware correction (FIX 3: Separate layer)
+        # Step 2: Apply context-aware correction (post-processing)
         emotion, confidence = _apply_context_rules(text, raw_emotion, raw_confidence)
         
         # FIX 4: Weighted accumulation
@@ -178,7 +179,7 @@ def analyse_emotions(transcript_data: List[Dict], audio_features: Dict = None) -
                 'confidence': confidence
             })
     
-    # FIX 4: Calculate confidence-weighted distribution
+    # Calculate confidence-weighted distribution
     total_weight = sum(emotion_scores.values())
     emotion_distribution = {
         emotion: score / total_weight
@@ -188,10 +189,10 @@ def analyse_emotions(transcript_data: List[Dict], audio_features: Dict = None) -
     # Get overall sentiment (highest weighted emotion)
     overall_sentiment = max(emotion_distribution, key=emotion_distribution.get)
     
-    # FIX 1: Calculate average confidence for dynamic weighting
+    # Calculate average confidence for weighting
     avg_confidence = np.mean(all_confidences) if all_confidences else 0.0
     
-    # Calculate emotional volatility (FIX: Advanced metric)
+    # Calculate emotional volatility (advanced metric)
     volatility_score = _calculate_volatility(timeline)
     
     # Calculate per-speaker dominant emotions

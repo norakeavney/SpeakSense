@@ -1,7 +1,11 @@
+"""Political analysis using zero-shot classification (BART MNLI).
+
+Per-speaker political alignment estimates from speaker text.
+"""
+
 import time
 import logging
 from typing import Dict, Any, List, Optional, Tuple
-from unittest import result
 
 from transformers import pipeline
 
@@ -21,7 +25,7 @@ _classifier = None
 def _get_classifier():
     global _classifier
     if _classifier is None:
-        print("Loading BART MNLI model locally...")
+        logger.info("Loading BART MNLI model...")
         import torch
         device = 0 if torch.cuda.is_available() else -1  # Use GPU if available, else CPU
         _classifier = pipeline(
@@ -29,8 +33,8 @@ def _get_classifier():
             model="facebook/bart-large-mnli",
             device=device
         )
-        device_msg = f"GPU" if device == 0 else "CPU"
-        print(f"Model loaded on {device_msg}.")
+        device_msg = "GPU" if device == 0 else "CPU"
+        logger.info(f"Model loaded on {device_msg}.")
     return _classifier
 
 
@@ -93,7 +97,6 @@ def analyse_speaker_politics(
 
     for sid, txt in speaker_texts.items():
         logger.info(f"{sid} text length: {len(txt)}")
-        logger.info(f"{sid} sample: {txt[:100]}")
 
     results: Dict[str, Any] = {
         "model": "facebook/bart-large-mnli (local)",

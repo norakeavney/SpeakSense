@@ -1,3 +1,10 @@
+"""GPU worker API: background audio analysis pipeline.
+
+Pipeline:
+    download -> speech (Whisper) -> diarization (Pyannote) -> speaker metrics ->
+    emotion analysis -> topic extraction -> political analysis -> DB updates
+"""
+
 from fastapi import FastAPI, BackgroundTasks, status
 from pydantic import BaseModel
 from pymongo import MongoClient
@@ -5,7 +12,6 @@ from dotenv import load_dotenv
 from datetime import datetime, timezone
 import os
 import logging
-import traceback
 import requests
 import tempfile
 from pathlib import Path
@@ -123,7 +129,7 @@ def process_job(job_id: str, file_url: str) -> None:
     Handles transcription, diarization, emotion, topics, and political analysis.
     """
     logger.info(f"[JOB {job_id}] Background task started")
-    logger.info(f"[JOB {job_id}] File URL: {file_url}")
+    logger.debug(f"[JOB {job_id}] File URL: {file_url}")
     
     file_ref = None  # Initialize file_ref to None
     try:
@@ -258,10 +264,13 @@ def process_job(job_id: str, file_url: str) -> None:
             except Exception as wc_err:
                 logger.warning(f"[JOB {job_id}] Wordcloud generation failed: {wc_err}")
 
-            logger.info(f"Text Sample for Topic Extraction: {full_text[:200]}")  # Log text sample for debugging
-            logger.info(f"[JOB {job_id}] Extracted {len(topics_result.get('keywords', []))} keywords and {len(topics_result.get('main_topics', []))} main topics")
-            logger.info(f"[JOB {job_id}] Main topics: {topics_result.get('main_topics', [])}")
-            logger.info(f"[JOB {job_id}] All keywords: {topics_result.get('keywords', [])}")
+            logger.debug(f"[JOB {job_id}] Text sample for topic extraction: {full_text[:200]}")
+            logger.info(
+                f"[JOB {job_id}] Extracted {len(topics_result.get('keywords', []))} keywords and "
+                f"{len(topics_result.get('main_topics', []))} main topics"
+            )
+            logger.debug(f"[JOB {job_id}] Main topics: {topics_result.get('main_topics', [])}")
+            logger.debug(f"[JOB {job_id}] All keywords: {topics_result.get('keywords', [])}")
             logger.info(f"[JOB {job_id}] Topic extraction completed")
 
             update_job(job_id, {
@@ -280,8 +289,7 @@ def process_job(job_id: str, file_url: str) -> None:
             logger.info(f"[JOB {job_id}] Running political analysis")
             speaker_texts = build_speaker_texts_from_diarized_transcript(transcript)
             
-            # Debug: log what we extracted
-            logger.info(f"[JOB {job_id}] Extracted speaker texts: {list(speaker_texts.keys())}")
+            logger.debug(f"[JOB {job_id}] Extracted speaker texts: {list(speaker_texts.keys())}")
             
             if not speaker_texts:
                 logger.warning(f"[JOB {job_id}] No speaker texts extracted from transcript")
@@ -340,8 +348,8 @@ def process(request: JobRequest, background_tasks: BackgroundTasks) -> dict[str,
     Returns immediately with job_id; processing happens in background.
     """
     logger.info(f"Job received: {request.job_id}")
-    logger.info(f"File URL: {request.file_url}")
-    logger.info(f"Queueing background task...")
+    logger.debug(f"File URL: {request.file_url}")
+    logger.debug("Queueing background task...")
     background_tasks.add_task(process_job, request.job_id, request.file_url)
     logger.info(f"Background task queued")
     return {"status": "accepted", "job_id": request.job_id}

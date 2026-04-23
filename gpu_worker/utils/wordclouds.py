@@ -1,13 +1,21 @@
+"""Word cloud utilities — generate base64-encoded PNG word clouds.
+
+Pipeline: build frequency map -> render WordCloud -> encode PNG to data URI.
+"""
+
 import base64
 import io
 import re
-from typing import Dict, List
+import logging
+from typing import Dict, List, Optional
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from wordcloud import STOPWORDS, WordCloud
 from ml.topic_extraction import ALL_STOPWORDS
+
+logger = logging.getLogger(__name__)
 
 CUSTOM_STOPWORDS = {
     "um", "uh", "like", "yeah", "okay", "ok",
@@ -20,14 +28,19 @@ CUSTOM_STOPWORDS = {
 
 
 def clean_token(token: str) -> str:
+    """Normalize a token: lower, strip, remove non-letters."""
     token = str(token or "").lower().strip()
     token = re.sub(r"[^a-z\s]", "", token)
     return token
 
 
-def build_frequency_map(keywords: List[str], scores: Dict[str, float] | None = None):
+def build_frequency_map(keywords: List[str], scores: Optional[Dict[str, float]] = None) -> Dict[str, float]:
+    """Build a frequency map from keywords and optional scores.
+
+    Combines stopwords from the WordCloud package, custom stopwords, and
+    global topic-extraction stopwords to filter tokens.
+    """
     scores = scores or {}
-    # Keep filtering aligned with topic extraction logic.
     stopwords = set(STOPWORDS) | CUSTOM_STOPWORDS | set(ALL_STOPWORDS)
 
     freq = {}
@@ -46,12 +59,17 @@ def build_frequency_map(keywords: List[str], scores: Dict[str, float] | None = N
     return sorted_freq
 
 
-def generate_wordcloud_base64(keywords, scores=None):
+def generate_wordcloud_base64(keywords: List[str], scores: Optional[Dict[str, float]] = None) -> Optional[str]:
+    """Render a word cloud from keywords and return a PNG data URI (base64).
+
+    Returns `None` when no keywords remain after filtering.
+    """
     freq = build_frequency_map(keywords, scores)
 
     if not freq:
         return None
 
+    # Render the word cloud image from frequencies
     wc = WordCloud(
         width=1200,
         height=600,
