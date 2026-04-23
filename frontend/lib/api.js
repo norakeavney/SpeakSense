@@ -1,24 +1,12 @@
-/**
- * API Service for SpeakSense Backend
- * Handles all communication with Django REST API with JWT authentication
- */
+/** Frontend API helpers (JWT auth + endpoints) */
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
-/**
- * Get JWT token from localStorage
- */
 const getAuthToken = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('access_token');
-  }
+  if (typeof window !== 'undefined') return localStorage.getItem('access_token');
   return null;
 };
 
-/**
- * Set tokens in localStorage
- */
 const setTokens = (accessToken, refreshToken) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('access_token', accessToken);
@@ -26,9 +14,6 @@ const setTokens = (accessToken, refreshToken) => {
   }
 };
 
-/**
- * Clear tokens from localStorage
- */
 const clearTokens = () => {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('access_token');
@@ -36,48 +21,27 @@ const clearTokens = () => {
   }
 };
 
-/**
- * Make authenticated API request with automatic token refresh
- */
 const authenticatedFetch = async (url, options = {}) => {
   const token = getAuthToken();
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  let response = await fetch(url, { ...options, headers });
 
-  let response = await fetch(url, {
-    ...options,
-    headers,
-  });
-
-  // If token expired, try to refresh
+  // Try refresh on 401
   if (response.status === 401 && token) {
     const refreshed = await refreshToken();
     if (refreshed) {
-      // Retry with new token
       headers['Authorization'] = `Bearer ${getAuthToken()}`;
-      response = await fetch(url, {
-        ...options,
-        headers,
-      });
+      response = await fetch(url, { ...options, headers });
     }
   }
 
   return response;
 };
 
-/**
- * Refresh JWT token
- */
 const refreshToken = async () => {
   const refresh = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
-  
   if (!refresh) {
     clearTokens();
     return false;
@@ -86,181 +50,129 @@ const refreshToken = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        refresh: refresh,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh }),
     });
 
     if (response.ok) {
       const data = await response.json();
       setTokens(data.access, refresh);
       return true;
-    } else {
-      clearTokens();
-      return false;
     }
-  } catch (error) {
+
+    clearTokens();
+    return false;
+  } catch (err) {
     clearTokens();
     return false;
   }
 };
 
-// ============================================
-// AUTHENTICATION API
-// ============================================
+// --- Authentication API ---
 
-/**
- * User registration
- */
+// Register a new user and persist returned tokens
 export const register = async (userData) => {
   try {
     const response = await fetch(`${API_BASE_URL}/auth/register/`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData),
     });
 
     const data = await response.json();
-
     if (response.ok) {
       setTokens(data.tokens.access, data.tokens.refresh);
       return { success: true, user: data.user };
-    } else {
-      return { success: false, errors: data };
     }
-  } catch (error) {
+
+    return { success: false, errors: data };
+  } catch (err) {
     return { success: false, errors: { detail: 'Network error' } };
   }
 };
 
-/**
- * User login
- */
+// Authenticate user and persist access/refresh tokens
 export const login = async (credentials) => {
   try {
     const response = await fetch(`${API_BASE_URL}/auth/login/`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials),
     });
 
     const data = await response.json();
-
     if (response.ok) {
       setTokens(data.tokens.access, data.tokens.refresh);
       return { success: true, user: data.user };
-    } else {
-      return { success: false, errors: data };
     }
-  } catch (error) {
+
+    return { success: false, errors: data };
+  } catch (err) {
     return { success: false, errors: { detail: 'Network error' } };
   }
 };
 
-/**
- * User logout
- */
+// Logout (server request) and clear local tokens
 export const logout = async () => {
   try {
-    await authenticatedFetch(`${API_BASE_URL}/auth/logout/`, {
-      method: 'POST',
-    });
-  } catch (error) {
+    await authenticatedFetch(`${API_BASE_URL}/auth/logout/`, { method: 'POST' });
+  } catch (err) {
     clearTokens();
   } finally {
     clearTokens();
   }
 };
 
-/**
- * Get user profile
- */
+// Fetch authenticated user's profile
 export const getUserProfile = async () => {
   try {
     const response = await authenticatedFetch(`${API_BASE_URL}/auth/profile/`);
-    
-    if (response.ok) {
-      return await response.json();
-    } else {
-      throw new Error('Failed to fetch profile');
-    }
-  } catch (error) {
-    throw error;
+    if (response.ok) return await response.json();
+    throw new Error('Failed to fetch profile');
+  } catch (err) {
+    throw err;
   }
 };
 
-/**
- * Check if user is authenticated
- */
-export const isAuthenticated = () => {
-  return !!getAuthToken();
-};
+// Check whether an access token is present
+export const isAuthenticated = () => !!getAuthToken();
 
-// USER REPORTS API
+// --- User reports ---
 
-/**
- * Get user's analysis reports
- */
+// Get the current user's analysis reports
 export const getUserReports = async () => {
   try {
     const response = await authenticatedFetch(`${API_BASE_URL}/user/reports/`);
-    
-    if (response.ok) {
-      return await response.json();
-    } else {
-      throw new Error('Failed to fetch reports');
-    }
-  } catch (error) {
-    throw error;
+    if (response.ok) return await response.json();
+    throw new Error('Failed to fetch reports');
+  } catch (err) {
+    throw err;
   }
 };
 
-/**
- * Get specific report details
- */
+// Get detailed data for a single report
 export const getReportDetail = async (jobId) => {
   try {
     const response = await authenticatedFetch(`${API_BASE_URL}/user/reports/${jobId}/`);
-    
-    if (response.ok) {
-      return await response.json();
-    } else {
-      throw new Error('Failed to fetch report details');
-    }
-  } catch (error) {
-    throw error;
+    if (response.ok) return await response.json();
+    throw new Error('Failed to fetch report details');
+  } catch (err) {
+    throw err;
   }
 };
 
-/**
- * Delete user report
- */
+// Delete a user report by job id
 export const deleteReport = async (jobId) => {
   try {
-    const response = await authenticatedFetch(`${API_BASE_URL}/user/reports/${jobId}/delete/`, {
-      method: 'DELETE',
-    });
-    
-    if (response.ok) {
-      return await response.json();
-    } else {
-      throw new Error('Failed to delete report');
-    }
-  } catch (error) {
-    throw error;
+    const response = await authenticatedFetch(`${API_BASE_URL}/user/reports/${jobId}/delete/`, { method: 'DELETE' });
+    if (response.ok) return await response.json();
+    throw new Error('Failed to delete report');
+  } catch (err) {
+    throw err;
   }
 };
 
-/**
- * Rename report metadata
- */
+// Update metadata (title/filename) for a report
 export const renameReport = async (jobId, payload) => {
   try {
     const response = await authenticatedFetch(`${API_BASE_URL}/user/reports/${jobId}/rename/`, {
@@ -268,50 +180,34 @@ export const renameReport = async (jobId, payload) => {
       body: JSON.stringify(payload),
     });
 
-    if (response.ok) {
-      return await response.json();
-    } else {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to rename report');
-    }
-  } catch (error) {
-    throw error;
+    if (response.ok) return await response.json();
+
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to rename report');
+  } catch (err) {
+    throw err;
   }
 };
 
 /**
- * Upload audio file to backend (requires authentication)
- * @param {File} file - Audio file to upload
- * @param {string} title - Optional title for the audio
- * @returns {Promise<Object>} Upload response with file_id, filename, size, title
+ * Upload audio file or YouTube URL.
+ * - If `input` is a File, posts `audio_file`.
+ * - Otherwise posts `youtube_url`.
  */
+// Upload an audio file or a YouTube URL for analysis
 export const uploadAudio = async (input, title = '') => {
   const formData = new FormData();
-
-  // If input is a File object
-  if (input instanceof File) {
-    formData.append('audio_file', input);
-  } else {
-    // Otherwise assume it's a YouTube URL
-    formData.append('youtube_url', input);
-  }
-
-  if (title) {
-    formData.append('title', title);
-  }
+  if (input instanceof File) formData.append('audio_file', input);
+  else formData.append('youtube_url', input);
+  if (title) formData.append('title', title);
 
   try {
     const token = getAuthToken();
-    
-    if (!token) {
-      throw new Error('Authentication required');
-    }
+    if (!token) throw new Error('Authentication required');
 
     const response = await fetch(`${API_BASE_URL}/upload/`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
 
@@ -321,78 +217,54 @@ export const uploadAudio = async (input, title = '') => {
     }
 
     return await response.json();
-
-  } catch (error) {
-    throw error;
+  } catch (err) {
+    throw err;
   }
 };
 
-/**
- * Get analysis job status (requires authentication)
- * @param {string} jobId - Job ID to check
- * @returns {Promise<Object>} Job status and results
- */
+// Fetch an analysis job's status and results
 export const getAnalysisStatus = async (jobId) => {
   try {
     const response = await authenticatedFetch(`${API_BASE_URL}/analysis/${jobId}/status/`);
-    
-    if (response.ok) {
-      return await response.json();
-    } else {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch analysis status');
-    }
-  } catch (error) {
-    throw error;
+    if (response.ok) return await response.json();
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to fetch analysis status');
+  } catch (err) {
+    throw err;
   }
 };
 
-/**
- * Confirm speaker names (requires authentication)
- * @param {string} jobId - Job ID
- * @param {Object} speakers - Speaker mappings {SPEAKER_00: "Name", ...}
- * @returns {Promise<Object>} Confirmation response
- */
+// Confirm or set speaker name mappings for a job
 export const confirmSpeakers = async (jobId, speakers) => {
   try {
     const response = await authenticatedFetch(`${API_BASE_URL}/analysis/${jobId}/speakers/confirm/`, {
       method: 'POST',
       body: JSON.stringify({ speakers }),
     });
-    
-    if (response.ok) {
-      return await response.json();
-    } else {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to confirm speakers');
-    }
-  } catch (error) {
-    throw error;
+    if (response.ok) return await response.json();
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to confirm speakers');
+  } catch (err) {
+    throw err;
   }
 };
 
-/**
- * Check API health status (public endpoint)
- * @returns {Promise<Object>} Health check response
- */
+// Public health check endpoint
 export const healthCheck = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/health/`);
     return await response.json();
-  } catch (error) {
-    throw error;
+  } catch (err) {
+    throw err;
   }
 };
 
-/**
- * Get API information (public endpoint)
- * @returns {Promise<Object>} API info
- */
+// Public API information endpoint
 export const getApiInfo = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/info/`);
     return await response.json();
-  } catch (error) {
-    throw error;
+  } catch (err) {
+    throw err;
   }
 };

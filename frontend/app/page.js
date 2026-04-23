@@ -100,7 +100,6 @@ export default function HomePage() {
             <AnalysisProgress
               jobId={jobId}
               onComplete={(data) => {
-                console.log('ANALYSIS COMPLETE:', data);
                 setAnalysisData(data);
                 setStage('dashboard');
               }}

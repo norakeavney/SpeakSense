@@ -5,7 +5,7 @@ import Login from './Login';
 import Register from './Register';
 
 const AuthFlow = ({ onSuccess }) => {
-  const [currentForm, setCurrentForm] = useState('login'); // 'login' or 'register'
+  const [currentForm, setCurrentForm] = useState('login');
 
   return (
     <>

@@ -8,8 +8,7 @@ export default function AnalysisProgress({ jobId, onComplete }) {
   const [error, setError] = useState(null);
 
   const safeReplace = (text) => {
-    if (!text) return "Unknown";
-    return String(text).replace(/_/g, " ");
+    return text ? String(text).replace(/_/g, ' ') : 'Unknown';
   };
 
   useEffect(() => {
@@ -25,7 +24,7 @@ export default function AnalysisProgress({ jobId, onComplete }) {
         if (data.status === 'done') {
           clearInterval(interval);
           if (onComplete) {
-            onComplete(data); // send full analysis results upward
+            onComplete(data);
           }
         }
 

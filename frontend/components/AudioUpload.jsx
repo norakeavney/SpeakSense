@@ -103,10 +103,7 @@ export default function AudioUpload({ onUploadComplete }) {
           <Tab.List className="flex bg-gray-100 rounded-lg p-1 mb-6">
             <Tab
               className={({ selected }) =>
-                `flex-1 rounded-md py-2 text-sm font-medium transition
-                ${selected
-                  ? 'bg-white shadow text-gray-900'
-                  : 'text-gray-500 hover:text-gray-700'}`
+                `flex-1 rounded-md py-2 text-sm font-medium transition ${selected ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
               }
             >
               Upload File
@@ -114,10 +111,7 @@ export default function AudioUpload({ onUploadComplete }) {
 
             <Tab
               className={({ selected }) =>
-                `flex-1 rounded-md py-2 text-sm font-medium transition
-                ${selected
-                  ? 'bg-white shadow text-gray-900'
-                  : 'text-gray-500 hover:text-gray-700'}`
+                `flex-1 rounded-md py-2 text-sm font-medium transition ${selected ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
               }
             >
               YouTube URL
@@ -126,8 +120,7 @@ export default function AudioUpload({ onUploadComplete }) {
 
           <Tab.Panels>
 
-            {/* FILE UPLOAD PANEL */}
-
+            // File upload panel
             <Tab.Panel>
 
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -219,8 +212,7 @@ export default function AudioUpload({ onUploadComplete }) {
             </Tab.Panel>
 
 
-            {/* YOUTUBE PANEL */}
-
+            // YouTube panel
             <Tab.Panel>
 
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -230,11 +222,7 @@ export default function AudioUpload({ onUploadComplete }) {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://youtube.com/watch?v=..."
-                  className="w-full bg-gray-800 border border-gray-600 text-white 
-                             rounded-lg px-4 py-3 
-                             placeholder-gray-400 
-                             focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                             font-sans"
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg px-4 py-3 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent font-sans"
                 />
 
                 <input
@@ -242,11 +230,7 @@ export default function AudioUpload({ onUploadComplete }) {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Optional title"
-                  className="w-full bg-gray-800 border border-gray-600 text-white 
-                             rounded-lg px-4 py-3 
-                             placeholder-gray-400 
-                             focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                             font-sans"
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg px-4 py-3 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent font-sans"
                 />
 
                 <button

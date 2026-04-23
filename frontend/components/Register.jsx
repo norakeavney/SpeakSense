@@ -22,7 +22,6 @@ const Register = ({ onSwitchToLogin, onSuccess }) => {
     setIsLoading(true);
     setErrors({});
 
-    // Client-side password confirmation check
     if (formData.password !== formData.password_confirm) {
       setErrors({ password_confirm: 'Passwords do not match' });
       setIsLoading(false);

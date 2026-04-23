@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { isAuthenticated, getUserProfile, logout as apiLogout } from '../lib/api';
 
 const AuthContext = createContext();
@@ -49,8 +49,7 @@ export const AuthProvider = ({ children }) => {
         setIsLoggedIn(true);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
-      // Clear invalid tokens
+      // Clear invalid tokens on auth failure
       logout();
     } finally {
       setLoading(false);

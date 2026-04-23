@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export default function TopicSentimentAnalysis({ topicSentiment = {}, speakersAvailable = [] }) {
   const [expandedTopic, setExpandedTopic] = useState(null);
@@ -64,7 +64,6 @@ export default function TopicSentimentAnalysis({ topicSentiment = {}, speakersAv
             </div>
           </div>
 
-          {/* Sentiment breakdown */}
           <div className="mt-3 flex gap-2">
             {data.positive_mentions > 0 && (
               <div className="flex items-center gap-1">
@@ -101,10 +100,9 @@ export default function TopicSentimentAnalysis({ topicSentiment = {}, speakersAv
             )}
           </div>
 
-          {/* Expanded details */}
           {expandedTopic === topic && (
             <div className="mt-4 pt-4 border-t border-gray-300 space-y-3">
-              {/* Per-speaker breakdown */}
+              
               {data.per_speaker && Object.keys(data.per_speaker).length > 0 && (
                 <div>
                   <p className="text-xs font-semibold uppercase text-gray-600 mb-2">
@@ -150,7 +148,7 @@ export default function TopicSentimentAnalysis({ topicSentiment = {}, speakersAv
                 </div>
               )}
 
-              {/* Example passages */}
+              
               {data.example_passages && data.example_passages.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold uppercase text-gray-600 mb-2">

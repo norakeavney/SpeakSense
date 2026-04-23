@@ -1,4 +1,3 @@
-import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function SpeakerAnalysis({ results }) {
@@ -19,7 +18,7 @@ export default function SpeakerAnalysis({ results }) {
     );
   }
 
-  // Prepare chart data for questions vs statements
+  // Questions data
   const questionData = Object.entries(questionsAnalysis).map(([speaker, data]) => ({
     name: speaker,
     questions: data?.questions || 0,
@@ -27,17 +26,17 @@ export default function SpeakerAnalysis({ results }) {
     role: data?.likely_role || 'unknown'
   }));
 
-  // Prepare chart data for agreement/disagreement
+  // Agreement data
   const agreementData = Object.entries(agreementAnalysis).map(([speaker, data]) => ({
     name: speaker,
     agreements: data?.agreements || 0,
     disagreements: data?.disagreements || 0,
-    style: { communicationStyle: data?.communication_style || 'neutral' } // Fixed style prop
+    style: { communicationStyle: data?.communication_style || 'neutral' }
   }));
 
   return (
     <div className="space-y-6">
-      {/* Basic Speaker Metrics */}
+      {/* Metrics */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
         <h3 className="text-lg font-semibold mb-4">Basic Speaker Metrics</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -67,7 +66,7 @@ export default function SpeakerAnalysis({ results }) {
         </div>
       </div>
 
-      {/* Questions vs Statements Analysis */}
+      {/* Questions vs Statements */}
       {Object.keys(questionsAnalysis).length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
           <h3 className="text-lg font-semibold mb-4">Questions vs Statements</h3>
@@ -113,7 +112,7 @@ export default function SpeakerAnalysis({ results }) {
         </div>
       )}
 
-      {/* Leading Questions & Bias Detection */}
+      {/* Leading Questions & Bias */}
       {Object.keys(leadingQuestions).length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
           <h3 className="text-lg font-semibold mb-4">Leading Questions & Bias</h3>
@@ -155,7 +154,7 @@ export default function SpeakerAnalysis({ results }) {
                             biasScore > 30 ? 'bg-red-500' :
                             biasScore > 10 ? 'bg-yellow-500' : 'bg-green-500'
                           }`}
-                          style={{ width: `${biasScore || 0}%` }} // Ensured style is an object
+                          style={{ width: `${biasScore || 0}%` }}
                         />
                       </div>
                     </div>
@@ -167,7 +166,7 @@ export default function SpeakerAnalysis({ results }) {
         </div>
       )}
 
-      {/* Sentiment Analysis */}
+      {/* Sentiment */}
       {Object.keys(sentimentAnalysis).length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
           <h3 className="text-lg font-semibold mb-4">Sentiment Analysis</h3>
@@ -228,7 +227,7 @@ export default function SpeakerAnalysis({ results }) {
         </div>
       )}
 
-      {/* Agreement/Disagreement Analysis */}
+      {/* Agreement */}
       {Object.keys(agreementAnalysis).length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
           <h3 className="text-lg font-semibold mb-4">Agreement & Disagreement</h3>
@@ -276,7 +275,7 @@ export default function SpeakerAnalysis({ results }) {
         </div>
       )}
 
-      {/* Interruption Analysis */}
+      {/* Interruptions */}
       {interruptions?.total_interruptions > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
           <h3 className="text-lg font-semibold mb-4">Interruption Analysis</h3>
@@ -311,7 +310,7 @@ export default function SpeakerAnalysis({ results }) {
                             dominanceScore > 70 ? 'bg-red-500' :
                             dominanceScore > 40 ? 'bg-yellow-500' : 'bg-blue-500'
                           }`}
-                          style={{ width: `${dominanceScore || 0}%` }} // Ensured style is an object
+                          style={{ width: `${dominanceScore || 0}%` }}
                         />
                       </div>
                     </div>

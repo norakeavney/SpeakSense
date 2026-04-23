@@ -50,12 +50,9 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
   const [activeTab, setActiveTab] = useState("overview");
   const [showCloudTooltip, setShowCloudTooltip] = useState(false);
   
-  const safeReplace = (text) => {
-    if (!text) return "Unknown";
-    return String(text).replace(/_/g, " ");
-  };
+  const safeReplace = (text) => (text ? String(text).replace(/_/g, ' ') : 'Unknown');
 
-  // Client-side stopwords for additional filtering
+  // Stopwords
   const CLIENT_STOPWORDS = new Set([
     "very", "quite", "rather", "fairly", "somewhat", "pretty", "especially",
     "perhaps", "possibly", "arguably", "apparently", "notably", "particularly",
@@ -72,7 +69,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
       .filter((t) => t.split(' ').every((word) => word.length >= 4))
       .filter((t) => !CLIENT_STOPWORDS.has(t) && !t.split(' ').some((w) => CLIENT_STOPWORDS.has(w)));
 
-  // Political alignment helpers
+  // Political helpers
   const clamp = (value, min = -1, max = 1) => Math.min(Math.max(value, min), max);
 
   const getOverallAxisPosition = (oneDimensional = {}) => {
@@ -167,7 +164,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
   const politicalData = results.political_analysis?.speakers || {};
   const politicalSpeakers = Object.entries(politicalData);
 
-  // EMOTION → PIE DATA
+  // Emotion data
   const emotionDistribution = results.emotion?.emotion_distribution || {};
   const pieData = Object.entries(emotionDistribution).map(
     ([emotion, value]) => ({
@@ -176,7 +173,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
     })
   );
 
-  // SPEAKER → BAR DATA
+  // Speaker bar data
   const speakerMetrics = results.speaker_metrics?.speakers || {};
   const speakers = Object.keys(speakerMetrics);
   const transcriptTurns = results.diarization?.transcript || [];
@@ -212,7 +209,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
     ([_, s]) => (s.speaking_time_seconds || 0) > 0
   );
 
-  // KPI CALCULATIONS
+  // KPI calculations
   const totalWords = realSpeakers.reduce(
     (sum, [_, s]) => sum + (s.total_words || 0),
     0
@@ -236,7 +233,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
         )}s`
       : 'N/A';
 
-  // FILE NAME (IF AVAILABLE)
+  // File display name
   const fileName =
     data.title ||
     data.audio_info?.title ||
@@ -471,7 +468,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
     );
   };
 
-  // RENDER
+  // Render
   return (
     <>
     <div className="flex items-end gap-2 mb-6 border-b border-gray-300 no-print">
@@ -533,9 +530,9 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
       })}
 
     </div>
-      <div ref={dashboardRef} className="w-full max-w-7xl mx-auto px-6 py-10">
+    <div ref={dashboardRef} className="w-full max-w-7xl mx-auto px-6 py-10">
         <div className="grid grid-cols-12 gap-6">
-        {/* HEADER / BIAS OVERVIEW */}
+        {/* Header */}
         <div className="col-span-12 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
           <div className="flex items-center">
             <div>
@@ -566,7 +563,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
 
         <div className={`tab-content col-span-12 ${activeTab === 'overview' ? 'block' : 'hidden'}`}>
           <div className="grid grid-cols-12 gap-6">
-            {/* KPI CARDS */}
+            {/* KPIs */}
             {[
               { label: 'Speakers', value: speakerCount },
               { label: 'Duration', value: duration },
@@ -622,7 +619,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
               )}
             </div>
 
-            {/* Bias Detection Box */}
+            {/* Bias */}
             {results.speaker_metrics?.bias_analysis && (
               <div className="col-span-12">
                 <BiasDetection biasAnalysis={results.speaker_metrics.bias_analysis} />
@@ -655,7 +652,7 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
                   <p className="text-gray-400 text-sm">No topic data available.</p>
                 )}
                 
-                {/* Hover Tooltip */}
+                {/* Tooltip */}
                 {showCloudTooltip && results.topics?.keywords && (
                   <div className="absolute top-6 right-6 bg-gray-900 text-white rounded-lg p-4 shadow-lg z-50 max-w-xs">
                     <p className="text-xs font-semibold mb-3 text-blue-300">Main Topics Summary</p>
@@ -716,10 +713,10 @@ export default function Dashboard({ data, onStartNew, autoDownloadRequested = fa
 
                           <div className="relative px-2 pt-10 pb-8">
                             <div className="relative h-4 rounded-full bg-gradient-to-r from-blue-500 via-gray-300 to-red-500 overflow-visible">
-                              {/* centre marker */}
+                              {/* centre */}
                               <div className="absolute left-1/2 top-0 h-4 w-px bg-gray-600 -translate-x-1/2" />
 
-                              {/* speaker dot */}
+                              {/* dot */}
                               <div
                                 className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2"
                                 style={{ left: `${markerPosition}%` }}

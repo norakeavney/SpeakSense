@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import WordCloud from './WordCloud';
 
 export default function PerSpeakerTopics({ 
@@ -10,10 +10,7 @@ export default function PerSpeakerTopics({
 }) {
   const [expandedSpeaker, setExpandedSpeaker] = useState(activeSpeaker);
 
-  const safeReplace = (text) => {
-    if (!text) return "Unknown";
-    return String(text).replace(/_/g, " ");
-  };
+  const safeReplace = (text) => (text ? String(text).replace(/_/g, ' ') : 'Unknown');
 
   if (!perSpeakerTopics || Object.keys(perSpeakerTopics).length === 0) {
     return (
@@ -108,7 +105,7 @@ export default function PerSpeakerTopics({
               </div>
             </button>
 
-            {/* Expanded content */}
+            {/* Expanded */}
             {isExpanded && (
               <div className="p-4 bg-gray-50 border-t border-gray-200 space-y-4">
                 {/* Word cloud */}
@@ -131,7 +128,7 @@ export default function PerSpeakerTopics({
                   </div>
                 )}
 
-                {/* All topics */}
+                {/* Topics */}
                 {topics.length > 0 && (
                   <div>
                     <p className="text-sm font-semibold text-gray-700 mb-2">Main Topics</p>
@@ -149,7 +146,7 @@ export default function PerSpeakerTopics({
                   </div>
                 )}
 
-                {/* Keywords with scores */}
+                {/* Keywords */}
                 {keywords.length > 0 && (
                   <div>
                     <p className="text-sm font-semibold text-gray-700 mb-2">Keywords (with relevance scores)</p>

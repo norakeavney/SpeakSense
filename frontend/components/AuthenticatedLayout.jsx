@@ -13,7 +13,6 @@ const AuthenticatedLayout = ({ children, currentPage = 'upload', onPageChange })
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-gray-200">
           <span className="text-lg font-semibold tracking-tight">
@@ -64,9 +63,8 @@ const AuthenticatedLayout = ({ children, currentPage = 'upload', onPageChange })
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col">
-        {/* Top Header */}
+        {/* Header */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center px-8">
           <h1 className="text-base font-medium tracking-tight">
             {navigation.find(item => item.id === currentPage)?.label || 'SpeakSense'}
@@ -79,7 +77,6 @@ const AuthenticatedLayout = ({ children, currentPage = 'upload', onPageChange })
           </div>
         </header>
 
-        {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-8">
           {children}
         </main>
