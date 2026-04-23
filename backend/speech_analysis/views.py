@@ -349,7 +349,6 @@ def analysis_status(request, job_id):
     try:
         # Fetch job from MongoDB
         job = AnalysisJobManager.get_job(job_id)
-        print("JOB FOUND:", job)
         if not job:
             return Response({
                 'error': 'Job not found',

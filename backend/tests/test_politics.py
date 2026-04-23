@@ -1,8 +1,10 @@
 from dotenv import load_dotenv
+import logging
 
 load_dotenv()
 from gpu_worker.ml.political_analysis import analyse_speaker_politics
 
+logger = logging.getLogger(__name__)
 
 fake_speakers = {
     "SPEAKER_00": "The government should increase taxes on corporations and invest in public healthcare and climate change initiatives.",
@@ -11,4 +13,4 @@ fake_speakers = {
 
 result = analyse_speaker_politics(fake_speakers)
 
-print(result)
+logger.info("%s", result)

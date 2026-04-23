@@ -8,11 +8,14 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.utils import extend_schema
+import logging
 
 from django.contrib.auth.models import User
 from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer
 from speech_analysis.db.mongodb import mongodb
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 def get_tokens_for_user(user):
@@ -57,7 +60,7 @@ def create_user_profile_in_mongodb(user):
         # profile created (info)
         
     except Exception as e:
-        print(f"Failed to create MongoDB profile: {e}")
+        logger.error("Failed to create MongoDB profile: %s", e)
 
 
 @extend_schema(
@@ -118,7 +121,7 @@ def login(request):
                 {'$set': {'profile.last_login': datetime.utcnow()}}
             )
         except Exception as e:
-            print(f"Failed to update last login: {e}")
+            logger.error("Failed to update last login: %s", e)
         
         # Generate tokens
         tokens = get_tokens_for_user(user)
@@ -165,7 +168,7 @@ def profile(request):
             profile_data = serializer.data
             
     except Exception as e:
-        print(f"Failed to fetch MongoDB profile: {e}")
+        logger.error("Failed to fetch MongoDB profile: %s", e)
         profile_data = serializer.data
     
     return Response(profile_data, status=status.HTTP_200_OK)
