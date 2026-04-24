@@ -15,8 +15,21 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_KEY }}
           script: |
-            cd speaksense
-            cd gpu_worker
-            git pull origin main
-            docker compose down
+            set -euo pipefail
+          
+            APP_DIR=/home/ubuntu/speaksense/SpeakSense/gpu_worker
+            REPO_URL=https://github.com/norakeavney/SpeakSense.git
+          
+            if [ ! -d "$APP_DIR/.git" ]; then
+              echo "Repo not found. Cloning..."
+              mkdir -p /home/ubuntu/speaksense
+              cd /home/ubuntu/speaksense
+              git clone "$REPO_URL"
+            fi
+          
+            cd "$APP_DIR"
+            git fetch origin
+            git reset --hard origin/main
+          
+            docker compose down || true
             docker compose up -d --build
