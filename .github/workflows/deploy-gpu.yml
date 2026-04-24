@@ -15,6 +15,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_KEY }}
           script: |
+            cd speaksense
             cd gpu_worker
             git pull origin main
             docker compose down
