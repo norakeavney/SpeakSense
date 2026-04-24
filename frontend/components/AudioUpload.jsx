@@ -120,7 +120,7 @@ export default function AudioUpload({ onUploadComplete }) {
 
           <Tab.Panels>
 
-            // File upload panel
+            {/* File upload panel */}
             <Tab.Panel>
 
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -212,7 +212,7 @@ export default function AudioUpload({ onUploadComplete }) {
             </Tab.Panel>
 
 
-            // YouTube panel
+            {/* YouTube panel */}
             <Tab.Panel>
 
               <form onSubmit={handleSubmit} className="space-y-6">
