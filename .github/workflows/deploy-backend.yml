@@ -15,7 +15,39 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_KEY }}
           script: |
-            cd speaksense
-            git pull origin main
-            docker compose down
-            docker compose up -d --build
+            set -euo pipefail
+
+            BASE_DIR=/home/ubuntu
+            REPO_DIR=$BASE_DIR/speaksense
+            REPO_URL=https://github.com/norakeavney/SpeakSense.git
+
+            echo "Ensuring repo exists..."
+
+            if [ ! -d "$REPO_DIR/.git" ]; then
+              echo "Cloning repo..."
+              rm -rf "$REPO_DIR"
+              git clone --branch main "$REPO_URL" "$REPO_DIR"
+            else
+              echo "Repo exists. Updating..."
+              cd "$REPO_DIR"
+              git fetch origin main
+              git reset --hard origin/main
+            fi
+
+            cd "$REPO_DIR"
+
+            echo "Detecting Docker Compose..."
+
+            if docker compose version >/dev/null 2>&1; then
+              COMPOSE="docker compose"
+            elif command -v docker-compose >/dev/null 2>&1; then
+              COMPOSE="docker-compose"
+            else
+              echo "ERROR: Docker Compose not installed"
+              exit 1
+            fi
+
+            echo "Deploying backend..."
+
+            $COMPOSE down || true
+            $COMPOSE up -d --build
