@@ -1,0 +1,21 @@
+name: Deploy GPU Worker
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to GPU EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.GPU_EC2_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd gpu_worker
+            git pull origin main
+            docker compose down
+            docker compose up -d --build
