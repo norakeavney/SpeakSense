@@ -15,4 +15,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_KEY }}
           script: |
-            echo "Connected!"
+            cd speaksense
+            git pull origin main
+            docker compose down
+            docker compose up -d --build
