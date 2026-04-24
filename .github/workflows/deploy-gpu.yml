@@ -16,20 +16,31 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             set -euo pipefail
-          
-            APP_DIR=/home/ubuntu/speaksense/SpeakSense/gpu_worker
+
+            BASE_DIR=/home/ubuntu/speaksense
+            REPO_DIR=$BASE_DIR/SpeakSense
+            APP_DIR=$REPO_DIR/gpu_worker
             REPO_URL=https://github.com/norakeavney/SpeakSense.git
-          
-            if [ ! -d "$APP_DIR/.git" ]; then
-              echo "Repo not found. Cloning..."
-              mkdir -p /home/ubuntu/speaksense
-              cd /home/ubuntu/speaksense
-              git clone "$REPO_URL"
+
+            mkdir -p "$BASE_DIR"
+
+            if [ ! -d "$REPO_DIR/.git" ]; then
+              echo "Repo not found or invalid. Cloning fresh..."
+              rm -rf "$REPO_DIR"
+              git clone "$REPO_URL" "$REPO_DIR"
             fi
-          
-            cd "$APP_DIR"
+
+            cd "$REPO_DIR"
             git fetch origin
             git reset --hard origin/main
-          
+
+            cd "$APP_DIR"
+
+            if [ ! -f ".env" ]; then
+              echo ".env file missing in $APP_DIR"
+              echo "Create the .env file on the GPU EC2 before deploying."
+              exit 1
+            fi
+
             docker compose down || true
             docker compose up -d --build
