@@ -116,3 +116,10 @@ bkup.txt
 # ----------------------------------------------------
 package-lock.json
 node_modules/
+
+# ----------------------------------------------------
+# README DIAGRAM ASSETS
+# Keep global image ignores, but allow committed diagrams in /images
+# ----------------------------------------------------
+!images/
+!images/**
