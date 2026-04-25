@@ -6,9 +6,11 @@ The platform processes raw audio inputs such as debates, interviews, and discuss
 
 All outputs are presented through an interactive dashboard, enabling users to explore and understand complex conversations in a clear and meaningful way.
 
-## Live Demo
+## Demo Video
 
-🚧 **TODO: Add deployed demo link here**
+This video demonstrates the full SpeakSense system, including architecture, code walkthrough, and live analysis.
+
+[![Watch the Demo](https://img.youtube.com/vi/vguLzReSgsM/0.jpg)](https://youtu.be/vguLzReSgsM)
 
 ## Getting Started
 
