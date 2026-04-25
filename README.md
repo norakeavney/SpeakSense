@@ -12,6 +12,22 @@ This video demonstrates the full SpeakSense system, including architecture, code
 
 [![Watch the Demo](https://img.youtube.com/vi/vguLzReSgsM/0.jpg)](https://youtu.be/vguLzReSgsM)
 
+## Tech Stack
+
+| Layer                 | Technology                        | Purpose |
+|----------------------|----------------------------------|--------|
+| Frontend             | Next.js / React                  | Interactive dashboard and user interface |
+| Backend API          | Django REST Framework            | Core API, authentication, and job orchestration |
+| ML Worker            | FastAPI                          | Handles ML processing and pipeline execution |
+| Transcription        | OpenAI Whisper                   | Converts speech to text |
+| Diarization          | pyannote.audio                   | Identifies and segments speakers |
+| Emotion Analysis     | DistilBERT                       | Classifies emotional tone from text |
+| Topic Extraction     | KeyBERT                          | Extracts key topics and keywords |
+| Political Analysis   | BART-MNLI (zero-shot)            | Infers political stance using zero-shot classification |
+| Database             | MongoDB Atlas                    | Stores analysis results and metadata |
+| Cloud Infrastructure| AWS EC2 (CPU + GPU instances)    | Hosts backend and GPU processing environments |
+| Containerisation     | Docker                           | Ensures consistent deployment across environments |
+
 ## Getting Started
 
 ### Prerequisites
@@ -135,7 +151,8 @@ Notes
 - Topic Extraction using KeyBERT  
 - Political Alignment Analysis (zero-shot classification)  
 - Interactive Dashboard with visualisations  
-- Support for real-world audio (uploaded files or YouTube links (locally))  
+- Support for real-world audio (uploaded files or YouTube links (locally))
+
 
 ## System Architecture
 
@@ -186,7 +203,17 @@ The system uses an asynchronous job-based architecture:
 SpeakSense uses MongoDB to store audio metadata and analysis results.
 
 - **Audio Files Collection** – stores uploaded audio references  
-- **Analysis Jobs Collection** – tracks processing status and results  
+- **Analysis Jobs Collection** – tracks processing status and results
+
+## CI/CD
+
+A lightweight CI/CD pipeline is configured using GitHub Actions. When triggered, the workflow connects to the backend and GPU worker EC2 instances via SSH, pulls the latest code, and rebuilds the application using Docker.
+
+A few things worth noting:
+
+- The AWS instances are started and stopped manually to manage cost — the pipeline assumes they are already running when triggered
+- The GPU instance in particular is kept off by default and started on-demand before running an analysis
+- Environment variables and credentials are managed via GitHub Secrets
 
 ## Dashboard & Outputs
 
@@ -204,14 +231,16 @@ Results are presented through an interactive dashboard, providing both high-leve
 - Bias and conversational balance metrics  
 - Word counts and speaking pace  
 
-## Evaluation Summary
+## Evaluation
 
-SpeakSense successfully demonstrates the transformation of raw conversational audio into structured analytical outputs.
+SpeakSense was tested on real-world conversational audio including debate excerpts and interviews. The system successfully generates speaker-attributed transcripts and extracts meaningful insights such as speaking time, emotional tone, and topic distributions.
 
-- Accurate multi-speaker transcription and segmentation  
-- Meaningful extraction of emotional and topical insights  
-- Effective visualisation of conversational dynamics  
-- Robust handling of real-world, unstructured audio  
+Performance varies by component. Transcription using Whisper (large) produced coherent results across most inputs, though accuracy drops with overlapping speech. Speaker diarization achieved an approximate DER of 18–22% on a manually annotated sample, with higher error rates in segments containing simultaneous speech or rapid speaker transitions. 
+Downstream tasks such as emotion detection and topic extraction are functional but dependent on transcription and diarization quality — errors in early stages propagate through the pipeline.
+
+Political alignment classification uses a zero-shot approach and should be treated as indicative rather than definitive.
+
+Full evaluation details, including pipeline comparisons and component-level analysis, are available in the dissertation.
 
 ## Future Work
 
@@ -219,7 +248,21 @@ SpeakSense successfully demonstrates the transformation of raw conversational au
 - Real-time streaming analysis  
 - Enhanced emotion detection using multimodal fusion  
 - Expanded political and bias analysis models  
-- Mobile and production deployment  
+- Mobile and production deployment
+
+## Use of AI Tools
+
+AI tools were used in a limited and supportive capacity during the development of this project.
+Tools such as ChatGPT, Claude and GitHub Copilot were used to assist with:
+
+- **Docker configuration** — helping debug container setup and GPU access within Docker, particularly around CUDA dependencies and environment configuration
+- **CI/CD pipeline** — assisting with GitHub Actions workflow syntax and SSH deployment steps to AWS EC2
+- **Dashboard UI** — suggesting component structure and layout approaches for the Next.js frontend visualisations
+- **General debugging** and understanding of unfamiliar technical concepts across the stack
+
+AI-generated suggestions were always reviewed, tested, and validated before being used. Final decisions regarding system design, model selection, pipeline structure, and evaluation approach were made by the author, with AI tools used as a sounding board and productivity aid throughout the process.
+
+AI tools were used to supplement productivity in areas like configuration and UI, not to replace original work.
 
 ## License
 
